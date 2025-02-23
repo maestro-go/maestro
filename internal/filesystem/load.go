@@ -324,6 +324,9 @@ func generateMd5Checksum(content *string) string {
 func sortMigrations(groupedMigrations *map[enums.MigrationType][]*migrations.Migration) {
 	for migrationsType := range *groupedMigrations {
 		sort.Slice((*groupedMigrations)[migrationsType], func(i, j int) bool {
+			if migrationsType == enums.MIGRATION_DOWN {
+				return (*groupedMigrations)[migrationsType][i].Version > (*groupedMigrations)[migrationsType][j].Version
+			}
 			return (*groupedMigrations)[migrationsType][i].Version < (*groupedMigrations)[migrationsType][j].Version
 		})
 	}
