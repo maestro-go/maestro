@@ -39,7 +39,7 @@ We welcome suggestions for new features. Please open an issue on our [GitHub rep
     git push origin feature-or-bugfix-name
     ```
 
-7. **Open a Pull Request**: Go to the original repository and open a pull request to the `dev` branch. Provide a detailed description of your changes and any relevant information. Once your changes are reviewed and approved, they will be merged into the `dev` branch and subsequently merged to the respective `Vx` branch for release.
+7. **Open a Pull Request**: Go to the original repository and open a pull request to the `dev` branch. Provide a detailed description of your changes and any relevant information. Once your changes are reviewed and approved, they will be merged into the `dev` branch and subsequently merged to the `main` branch for release.
 
 ### Code Style
 
