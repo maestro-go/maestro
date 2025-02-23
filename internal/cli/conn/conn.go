@@ -77,12 +77,13 @@ func connectToPostgres(config *conf.ProjectConfig) (*sql.DB, error) {
 
 func buildConnectionString(config *conf.ProjectConfig, host string, port uint16) string {
 	return fmt.Sprintf(
-		"host=%s port=%d dbname=%s user=%s password=%s sslmode=%s",
+		"host=%s port=%d dbname=%s user=%s password=%s sslmode=%s search_path=%s",
 		host,
 		port,
 		config.Database,
 		config.User,
 		config.Password,
 		config.SSL.SSLMode,
+		config.Schema,
 	)
 }
