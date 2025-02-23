@@ -103,7 +103,7 @@ func main() {
     }
 
     repo := postgres.NewPostgresRepository(ctx, db)
-    migrator := migrator.NewMigrator(ctx, logger, repo, config)
+    migrator := migrator.NewMigrator(logger, repo, config)
 
     err = migrator.Migrate()
     if err != nil {

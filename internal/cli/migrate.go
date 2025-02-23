@@ -113,7 +113,7 @@ func runMigrateCommand(cmd *cobra.Command, args []string) {
 	}
 	defer cleanup()
 
-	migrator := migrator.NewMigrator(ctx, logger, repo, &projectConfig.Migration)
+	migrator := migrator.NewMigrator(logger, repo, &projectConfig.Migration)
 	err = migrator.Migrate()
 	if err != nil {
 		return

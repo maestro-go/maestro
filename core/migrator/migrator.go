@@ -1,7 +1,6 @@
 package migrator
 
 import (
-	"context"
 	"errors"
 
 	"github.com/maestro-go/maestro/core/conf"
@@ -13,7 +12,6 @@ import (
 )
 
 type Migrator struct {
-	ctx    context.Context
 	logger *zap.Logger
 
 	repository database.Repository
@@ -21,9 +19,8 @@ type Migrator struct {
 	config *conf.MigrationConfig
 }
 
-func NewMigrator(ctx context.Context, logger *zap.Logger, repository database.Repository, config *conf.MigrationConfig) *Migrator {
+func NewMigrator(logger *zap.Logger, repository database.Repository, config *conf.MigrationConfig) *Migrator {
 	return &Migrator{
-		ctx:        ctx,
 		logger:     logger,
 		repository: repository,
 		config:     config,
@@ -66,6 +63,14 @@ func (m *Migrator) Migrate() error {
 		latestMigration, err := m.repository.GetLatestMigration()
 		if err != nil {
 			return err
+		}
+
+		if (!m.config.Down && len(migrationsMap[enums.MIGRATION_UP]) < 1) ||
+			(m.config.Down && len(migrationsMap[enums.MIGRATION_DOWN]) < 1) {
+			if m.logger != nil {
+				m.logger.Warn("no migrations found in the specified directories")
+			}
+			return nil
 		}
 
 		// Fix up migration destination to latest local version
