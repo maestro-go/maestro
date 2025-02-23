@@ -22,7 +22,7 @@ import (
 // This function processes files in the given directories to load migration and hook objects.
 // It uses the provided configuration to determine which migrations and hooks should be included,
 // avoiding unnecessary memory usage. If a file contains templates, they are replaced with actual
-// content. For up migration files, an MD5 checksum is generated for the final content (after the templates proccess).
+// content. For up migration files, an MD5 checksum is generated for the final content (after the templates process).
 //
 // Notes:
 //   - Files are processed concurrently for better performance.

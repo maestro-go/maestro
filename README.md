@@ -1,6 +1,6 @@
 ![GitHub Release](https://img.shields.io/github/v/release/maestro-go/maestro?color=red)
 ![Supported Go Versions](https://img.shields.io/badge/Go-1.22%2C%201.23-blue.svg)
-![Go Report Card](https://goreportcard.com/badge/github.com/maestro-go/maestro)
+[![Go Report Card](https://goreportcard.com/badge/github.com/maestro-go/maestro)](https://goreportcard.com/report/github.com/maestro-go/maestro)
 
 <p align="center">
 <img src="./.github/assets/imgs/logo.png" alt="Maestro Logo" width="300">
