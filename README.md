@@ -36,6 +36,7 @@ maestro migrate
   - [⬇️ Migrating Down](#migrating-down)
   - [🔧 Repair Migrations](#migrations-repair)
   - [🔍 Check Status](#migrations-status)
+  - [📑 Templates](#templates)
 - [⚠️ Warnings](#warnings)
 - [📚 Documentation](#documentation)
 - [🤝 Contributing](#contributing)
@@ -144,6 +145,45 @@ Check the current migrations status, like latest applied migration and failed mi
 
 ```bash
 maestro status
+```
+
+### Templates
+Maestro supports the use of templates to simplify and standardize your migration files. Templates allow you to define reusable content that can be dynamically replaced with specific values during migration execution.
+
+To use templates, create a template file in your migrations directory with the `.template.sql` extension. For example:
+
+```
+📁 migrations/
+├── 📄 V001_create_users.sql
+├── 📄 V001_create_users.down.sql
+└── 📄 table_template.template.sql
+```
+
+In your migration files, you can reference the template using the `{{template_name, value1, value2}}` syntax. Maestro will replace the template placeholders with the provided values.
+
+Example template file (`table_template.template.sql`):
+```sql
+CREATE TABLE $1 (
+  id SERIAL PRIMARY KEY,
+  $2 VARCHAR(255) NOT NULL,
+  $3 VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Example migration file using the template:
+```
+{{table_template, users, name, email}}
+```
+
+Maestro will replace `{{table_template, users, name, email}}` with the content of `table_template.template.sql`, resulting in:
+```sql
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ## Warnings
