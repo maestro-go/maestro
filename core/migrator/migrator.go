@@ -274,9 +274,9 @@ func (m *Migrator) migrateDown(migrations []*migrations.Migration, hooks map[enu
 			m.logger.Info("Rolling back", zap.Uint16("version", migration.Version),
 				zap.String("name", migration.Description))
 		}
-		mErrs := m.repository.RollbackMigration(migration)
-		if len(mErrs) > 0 {
-			errs = append(errs, mErrs...)
+		err := m.repository.RollbackMigration(migration)
+		if err != nil {
+			errs = append(errs, err)
 			if !m.config.Force {
 				return errs
 			}

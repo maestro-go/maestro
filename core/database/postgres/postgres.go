@@ -230,9 +230,9 @@ func (r *PostgresRepository) ExecuteHook(hook *migrations.Hook) error {
 	return nil
 }
 
-func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) []error {
+func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) error {
 	if migration.Type != enums.MIGRATION_DOWN {
-		return []error{fmt.Errorf("invalid migration type: %s", migration.Type.Name())}
+		return fmt.Errorf("invalid migration type: %s", migration.Type.Name())
 	}
 
 	query := fmt.Sprintf(`
@@ -244,18 +244,16 @@ func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) 
 	exists := false
 	err := r.queriable.QueryRowContext(r.ctx, query, migration.Version).Scan(&exists)
 	if err != nil {
-		return []error{err}
+		return err
 	}
 
 	if !exists {
 		return nil
 	}
 
-	errs := make([]error, 0)
-
 	_, err = r.queriable.ExecContext(r.ctx, *migration.Content)
 	if err != nil {
-		errs = append(errs, err)
+		return err
 	}
 
 	query = fmt.Sprintf(`
@@ -265,22 +263,16 @@ func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) 
 
 	res, err := r.queriable.ExecContext(r.ctx, query, migration.Version)
 	if err != nil {
-		errs = append(errs, err)
-		return errs
+		return err
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		errs = append(errs, err)
-		return errs
+		return err
 	}
 
 	if rowsAffected < 1 {
-		errs = append(errs, fmt.Errorf("version was not deleted from \"%s\" table", schema_history_table))
-	}
-
-	if len(errs) > 0 {
-		return errs
+		return fmt.Errorf("version was not deleted from \"%s\" table", schema_history_table)
 	}
 
 	return nil

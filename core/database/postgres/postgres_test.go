@@ -287,15 +287,15 @@ func (s *MigrationTestSuite) TestRollbackMigration() {
 		Content:     &content,
 	}
 
-	errs := s.repository.RollbackMigration(migration)
-	s.Assert().Len(errs, 1)
+	err := s.repository.RollbackMigration(migration)
+	s.Assert().Error(err)
 
 	*migration.Content = "DROP TABLE IF EXISTS test4;"
 
-	errs = s.repository.RollbackMigration(migration)
-	s.Assert().Len(errs, 1)
+	err = s.repository.RollbackMigration(migration)
+	s.Assert().Error(err)
 
-	err := s.repository.AssertSchemaHistoryTable()
+	err = s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
 
 	_, err = s.suiteDb.ExecContext(s.ctx, "CREATE TABLE test4 (id INT NOT NULL PRIMARY KEY);")
@@ -328,8 +328,8 @@ func (s *MigrationTestSuite) TestRollbackMigration() {
 	s.Assert().NoError(err)
 	s.Assert().True(exists)
 
-	errs = s.repository.RollbackMigration(migration)
-	s.Assert().Nil(errs)
+	err = s.repository.RollbackMigration(migration)
+	s.Assert().NoError(err)
 
 	err = s.suiteDb.QueryRowContext(s.ctx, query1, "test4").Scan(&exists)
 	s.Assert().NoError(err)
