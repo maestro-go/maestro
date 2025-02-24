@@ -13,19 +13,26 @@ import (
 
 type PostgresContainer struct {
 	testcontainers.Container
-	URI string
+	URI      string
+	Username string
+	Password string
+	Database string
+	Port     string
 }
 
 func SetupPostgres(t *testing.T) *PostgresContainer {
 	ctx := context.Background()
+	database := "test_db"
+	username := "test_user"
+	password := "password"
 	req := testcontainers.ContainerRequest{
 		Image:        "postgres:17-alpine",
 		ExposedPorts: []string{"5432/tcp"},
 		WaitingFor:   wait.ForLog("database system is ready to accept connections"),
 		Env: map[string]string{
-			"POSTGRES_DB":       "test_db",
-			"POSTGRES_USER":     "test_user",
-			"POSTGRES_PASSWORD": "test_pass",
+			"POSTGRES_DB":       database,
+			"POSTGRES_USER":     username,
+			"POSTGRES_PASSWORD": password,
 		},
 	}
 
@@ -41,11 +48,15 @@ func SetupPostgres(t *testing.T) *PostgresContainer {
 	port, err := container.MappedPort(ctx, "5432")
 	require.NoError(t, err)
 
-	uri := fmt.Sprintf("postgres://test_user:test_pass@%s:%s/test_db?sslmode=disable", host, port.Port())
+	uri := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port.Port(), database)
 
 	postgres := &PostgresContainer{
 		Container: container,
 		URI:       uri,
+		Username:  username,
+		Password:  password,
+		Database:  database,
+		Port:      port.Port(),
 	}
 
 	// Wait for container to be ready

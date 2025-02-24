@@ -23,11 +23,6 @@ func SetupMigrationConfigFlags(cmd *cobra.Command) {
 func ExtractMigrationConfigFlags(cmd *cobra.Command, config *conf.MigrationConfig) error {
 	var err error
 
-	config.Locations, err = cmd.Flags().GetStringSlice("locations")
-	if err != nil {
-		return err
-	}
-
 	config.Validate, err = cmd.Flags().GetBool("validate")
 	if err != nil {
 		return err
@@ -97,8 +92,8 @@ func ExtractMigrationConfigFlags(cmd *cobra.Command, config *conf.MigrationConfi
 func MergeMigrationsConfigFlags(cmd *cobra.Command, config *conf.MigrationConfig) error {
 	var err error
 
-	if cmd.Flags().Changed("locations") {
-		config.Locations, err = cmd.Flags().GetStringSlice("locations")
+	if cmd.Flags().Changed("migrations") {
+		config.Locations, err = cmd.Flags().GetStringSlice("migrations")
 		if err != nil {
 			return err
 		}
