@@ -1,8 +1,16 @@
-![GitHub Release](https://img.shields.io/github/v/release/maestro-go/maestro?color=red)
-![Supported Go Versions](https://img.shields.io/badge/Go-1.22%2C%201.23-blue.svg)
-[![Go Report Card](https://goreportcard.com/badge/github.com/maestro-go/maestro)](https://goreportcard.com/report/github.com/maestro-go/maestro)
-[![Coverage Status](https://coveralls.io/repos/github/maestro-go/maestro/badge.svg?branch=main)](https://coveralls.io/github/maestro-go/maestro?branch=main)
-[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](./LICENSE)
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/maestro-go/maestro?color=red" alt="GitHub Release">
+  <img src="https://img.shields.io/badge/Go-1.22%2C%201.23-blue.svg" alt="Supported Go Versions">
+  <a href="https://goreportcard.com/report/github.com/maestro-go/maestro">
+    <img src="https://goreportcard.com/badge/github.com/maestro-go/maestro" alt="Go Report Card">
+  </a>
+  <a href="https://coveralls.io/github/maestro-go/maestro?branch=main">
+    <img src="https://coveralls.io/repos/github/maestro-go/maestro/badge.svg?branch=main" alt="Coverage Status">
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-yellow.svg" alt="License">
+  </a>
+</p>
 
 <p align="center">
 <img src="./.github/assets/imgs/logo.png" alt="Maestro Logo" width="300">

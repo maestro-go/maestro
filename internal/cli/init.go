@@ -76,6 +76,9 @@ func runInitCommand(cmd *cobra.Command, args []string) {
 		os.RemoveAll(configFilePath) // Rollback
 		return
 	}
+
+	logger.Info("Maestro project successfully initialized", zap.String("configuration file", configFilePath),
+		zap.Strings("migration directories", globalFlags.MigrationLocations))
 }
 
 func insertConfigFile(configFilePath string, migrations []string) error {

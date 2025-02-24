@@ -85,8 +85,8 @@ func (r *PostgresRepository) AssertSchemaHistoryTable() error {
 func (r *PostgresRepository) CheckSchemaHistoryTable() (bool, error) {
 	query := `
 		SELECT EXISTS (
-			SELECT FROM information_schema.tables
-			WHERE table_name = $1
+			SELECT 1 FROM pg_tables
+			WHERE tablename = $1 AND schemaname = current_schema()
 		);
 	`
 
@@ -211,7 +211,7 @@ func (r *PostgresRepository) ExecuteMigration(migration *migrations.Migration) [
 		migration.Checksum, err == nil)
 
 	if err != nil {
-		errs = append(errs, err)
+		errs = append(errs, fmt.Errorf("migration %d: %w", migration.Version, err))
 	}
 
 	if len(errs) > 0 {

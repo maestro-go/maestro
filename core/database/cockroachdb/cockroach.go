@@ -86,8 +86,8 @@ func (r *CockroachRepository) AssertSchemaHistoryTable() error {
 func (r *CockroachRepository) CheckSchemaHistoryTable() (bool, error) {
 	query := `
 		SELECT EXISTS (
-			SELECT table_name FROM information_schema.tables
-			WHERE table_name = $1
+			SELECT 1 FROM pg_tables
+			WHERE tablename = $1 AND schemaname = current_schema()
 		);
 	`
 
@@ -212,7 +212,7 @@ func (r *CockroachRepository) ExecuteMigration(migration *migrations.Migration) 
 		migration.Checksum, err == nil)
 
 	if err != nil {
-		errs = append(errs, err)
+		errs = append(errs, fmt.Errorf("migration %d: %w", migration.Version, err))
 	}
 
 	if len(errs) > 0 {
