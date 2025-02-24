@@ -101,6 +101,10 @@ func (r *CockroachRepository) CheckSchemaHistoryTable() (bool, error) {
 }
 
 func (r *CockroachRepository) ValidateMigrations(migrations []*migrations.Migration) []error {
+	if len(migrations) < 1 {
+		return nil
+	}
+
 	tableExists, err := r.CheckSchemaHistoryTable()
 	if err != nil {
 		return []error{err}
@@ -442,6 +446,15 @@ func (r *CockroachRepository) Repair(migrations []*migrations.Migration) []error
 }
 
 func (r *CockroachRepository) GetFailingMigrations() ([]*migrations.Migration, error) {
+	exists, err := r.CheckSchemaHistoryTable()
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return nil, nil
+	}
+
 	query := fmt.Sprintf(`
         SELECT version, description, md5_checksum
         FROM %s

@@ -282,7 +282,7 @@ func (m *Migrator) migrateDown(migrations []*migrations.Migration, hooks map[enu
 		}
 
 		// Do not execute repeatable after last migration
-		if m.config.UseRepeatable && migration.Version > to {
+		if m.config.UseRepeatable && migration.Version > to+1 {
 			hErrs := m.executeHooks(hooks[enums.HOOK_REPEATABLE_DOWN])
 			if len(hErrs) > 0 {
 				errs = append(errs, hErrs...)

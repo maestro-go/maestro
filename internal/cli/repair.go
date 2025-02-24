@@ -75,6 +75,8 @@ func runRepairCommand(cmd *cobra.Command, args []string) {
 			logger.Error("error extracting database config flags", zap.Error(err))
 			return
 		}
+
+		projectConfig.Migration.Locations = globalFlags.MigrationLocations
 	}
 
 	driver, ok := enums.MapStringToDriverType[projectConfig.Driver]
