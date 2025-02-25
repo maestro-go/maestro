@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"path/filepath"
 
@@ -22,7 +24,7 @@ func SetupStatusCommand() *cobra.Command {
 		Use:   "status",
 		Short: "Show the status of migrations",
 		Long:  `Show the status of migrations including the latest migration, validation errors, and failing migrations.`,
-		Run:   runStatusCommand,
+		RunE:  runStatusCommand,
 	}
 
 	statusCmd.Flags().SortFlags = false
@@ -31,11 +33,11 @@ func SetupStatusCommand() *cobra.Command {
 	return statusCmd
 }
 
-func runStatusCommand(cmd *cobra.Command, args []string) {
+func runStatusCommand(cmd *cobra.Command, args []string) error {
 	logger, err := logger.NewLogger()
 	if err != nil {
 		log.Fatal(err)
-		return
+		return err
 	}
 
 	ctx := context.Background()
@@ -43,14 +45,14 @@ func runStatusCommand(cmd *cobra.Command, args []string) {
 	globalFlags, err := flags.ExtractGlobalFlags(cmd)
 	if err != nil {
 		logger.Error("error extracting global flags", zap.Error(err))
-		return
+		return err
 	}
 
 	configFilePath := filepath.Join(globalFlags.Location, internalConf.DEFAULT_PROJECT_FILE)
 	exists, err := filesystem.CheckFSObject(configFilePath)
 	if err != nil {
 		logger.Error("error checking file", zap.Error(err))
-		return
+		return err
 	}
 
 	projectConfig := &conf.ProjectConfig{}
@@ -60,33 +62,33 @@ func runStatusCommand(cmd *cobra.Command, args []string) {
 		err = conf.LoadConfigFromFile(configFilePath, projectConfig)
 		if err != nil {
 			logger.Error("error extracting config from file", zap.Error(err))
-			return
+			return err
 		}
 
 		err = flags.MergeDBConfigFlags(cmd, projectConfig)
 		if err != nil {
 			logger.Error("error merging database config flags", zap.Error(err))
-			return
+			return err
 		}
 
 	} else {
 		err = flags.ExtractDBConfigFlags(cmd, projectConfig)
 		if err != nil {
 			logger.Error("error extracting database config flags", zap.Error(err))
-			return
+			return err
 		}
 	}
 
 	driver, ok := enums.MapStringToDriverType[projectConfig.Driver]
 	if !ok {
 		logger.Error("invalid driver", zap.String("driver", projectConfig.Driver))
-		return
+		return fmt.Errorf("invalid driver %s", projectConfig.Driver)
 	}
 
 	repo, cleanup, err := conn.ConnectToDatabase(ctx, projectConfig, driver)
 	if err != nil {
 		logger.Error("error connecting to database", zap.Error(err))
-		return
+		return err
 	}
 	defer cleanup()
 
@@ -94,7 +96,7 @@ func runStatusCommand(cmd *cobra.Command, args []string) {
 	latestMigration, err := repo.GetLatestMigration()
 	if err != nil {
 		logger.Error("error getting latest migration", zap.Error(err))
-		return
+		return err
 	}
 	logger.Info("Latest migration", zap.Uint16("version", latestMigration))
 
@@ -104,7 +106,7 @@ func runStatusCommand(cmd *cobra.Command, args []string) {
 		for _, err := range errs {
 			logger.Error("error loading migrations", zap.Error(err))
 		}
-		return
+		return errors.Join(errs...)
 	}
 
 	// Validate migrations
@@ -119,10 +121,12 @@ func runStatusCommand(cmd *cobra.Command, args []string) {
 	failingMigrations, err := repo.GetFailingMigrations()
 	if err != nil {
 		logger.Error("error getting failing migrations", zap.Error(err))
-		return
+		return err
 	}
 
 	for _, migration := range failingMigrations {
 		logger.Info("Failing migration", zap.Uint16("version", migration.Version), zap.String("description", migration.Description))
 	}
+
+	return nil
 }

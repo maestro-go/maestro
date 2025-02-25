@@ -30,23 +30,23 @@ This command performs the following steps:
 3. Generates example migration files within each migration directory.
 
 If the configuration file already exists, the command will warn the user and exit without making changes.`,
-		Run: runInitCommand,
+		RunE: runInitCommand,
 	}
 
 	return initCmd
 }
 
-func runInitCommand(cmd *cobra.Command, args []string) {
+func runInitCommand(cmd *cobra.Command, args []string) error {
 	logger, err := logger.NewLogger()
 	if err != nil {
 		log.Fatal(err)
-		return
+		return err
 	}
 
 	globalFlags, err := flags.ExtractGlobalFlags(cmd)
 	if err != nil {
 		logger.Error("error extracting global flags", zap.Error(err))
-		return
+		return err
 	}
 
 	configFilePath := filepath.Join(globalFlags.Location, internalConf.DEFAULT_PROJECT_FILE)
@@ -54,18 +54,18 @@ func runInitCommand(cmd *cobra.Command, args []string) {
 	exists, err := filesystem.CheckFSObject(configFilePath)
 	if err != nil {
 		logger.Error("error checking file", zap.Error(err))
-		return
+		return err
 	}
 
 	if exists {
 		logger.Warn("project already initialized", zap.String("location", configFilePath))
-		return
+		return nil
 	}
 
 	err = insertConfigFile(configFilePath, globalFlags.MigrationLocations)
 	if err != nil {
 		logger.Error("error creating config file", zap.Error(err))
-		return
+		return err
 	}
 
 	errs := insertMigrationFolders(globalFlags.MigrationLocations)
@@ -74,11 +74,13 @@ func runInitCommand(cmd *cobra.Command, args []string) {
 			logger.Error("error creating migration", zap.Error(err))
 		}
 		os.RemoveAll(configFilePath) // Rollback
-		return
+		return err
 	}
 
 	logger.Info("Maestro project successfully initialized", zap.String("configuration file", configFilePath),
 		zap.Strings("migration directories", globalFlags.MigrationLocations))
+
+	return nil
 }
 
 func insertConfigFile(configFilePath string, migrations []string) error {

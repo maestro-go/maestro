@@ -86,6 +86,22 @@ func (m *Migrator) Migrate() error {
 		}
 
 		if m.config.Validate {
+			failingMigrations, err := m.repository.GetFailingMigrations()
+			if err != nil {
+				return err
+			}
+
+			if len(failingMigrations) > 0 {
+				errs = make([]error, 0)
+				for _, failingMigration := range failingMigrations {
+					if m.logger != nil {
+						m.logger.Error("found an unsucceeded migration", zap.Uint16("version", failingMigration.Version))
+					}
+					errs = append(errs, fmt.Errorf("found an unsucceded migration: %d", failingMigration.Version))
+				}
+				return errors.Join(errs...)
+			}
+
 			errs = migrations.ValidateMigrations(migrationsMap[enums.MIGRATION_UP])
 			if len(errs) > 0 {
 				if m.logger != nil {

@@ -2,7 +2,6 @@ package cockroachdb
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -388,46 +387,20 @@ func (r *CockroachRepository) Repair(migrations []*migrations.Migration) []error
 
 	for _, migration := range migrations {
 		query := fmt.Sprintf(`
-            SELECT version, description, md5_checksum
-            FROM %s
-            WHERE version = $1;
-        `, schema_history_table)
+			INSERT INTO %s (version, description, md5_checksum, success, repaired_at)
+			VALUES ($1, $2, $3, true, NOW())
+			ON CONFLICT (version) DO UPDATE
+			SET description = EXCLUDED.description, md5_checksum = EXCLUDED.md5_checksum,
+				repaired_at = CASE
+					WHEN EXCLUDED.description <> %s.description OR EXCLUDED.md5_checksum <> %s.md5_checksum
+					THEN NOW()
+					ELSE %s.repaired_at
+				END;
+		`, schema_history_table, schema_history_table, schema_history_table, schema_history_table)
 
-		var storedVersion uint16
-		var storedDescription, storedChecksum string
-
-		err := r.queriable.QueryRowContext(r.ctx, query, migration.Version).Scan(&storedVersion, &storedDescription, &storedChecksum)
+		_, err := r.queriable.ExecContext(r.ctx, query, migration.Version, migration.Description, *migration.Checksum)
 		if err != nil {
-			if err == sql.ErrNoRows {
-				// Upsert the migration if it does not exist
-				insertQuery := fmt.Sprintf(`
-                    INSERT INTO %s (version, description, md5_checksum, success, repaired_at)
-                    VALUES ($1, $2, $3, true, NOW())
-                    ON CONFLICT (version) DO UPDATE
-                    SET description = $2, md5_checksum = $3, repaired_at = NOW();
-                `, schema_history_table)
-
-				_, err := r.queriable.ExecContext(r.ctx, insertQuery, migration.Version, migration.Description, *migration.Checksum)
-				if err != nil {
-					errs = append(errs, err)
-				}
-			} else {
-				errs = append(errs, err)
-			}
-			continue
-		}
-
-		if storedDescription != migration.Description || storedChecksum != *migration.Checksum {
-			updateQuery := fmt.Sprintf(`
-                UPDATE %s
-                SET description = $2, md5_checksum = $3, repaired_at = NOW()
-                WHERE version = $1;
-            `, schema_history_table)
-
-			_, err := r.queriable.ExecContext(r.ctx, updateQuery, migration.Version, migration.Description, *migration.Checksum)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			errs = append(errs, err)
 		}
 	}
 
