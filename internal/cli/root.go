@@ -17,6 +17,7 @@ With Maestro, you can ensure your database schema evolves smoothly and consisten
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.Flags().SortFlags = false
+	rootCmd.SilenceUsage = true
 
 	flags.SetupGlobalFlags(rootCmd)
 

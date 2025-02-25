@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -85,8 +84,8 @@ func (r *PostgresRepository) AssertSchemaHistoryTable() error {
 func (r *PostgresRepository) CheckSchemaHistoryTable() (bool, error) {
 	query := `
 		SELECT EXISTS (
-			SELECT FROM information_schema.tables
-			WHERE table_name = $1
+			SELECT 1 FROM pg_tables
+			WHERE tablename = $1 AND schemaname = current_schema()
 		);
 	`
 
@@ -211,7 +210,7 @@ func (r *PostgresRepository) ExecuteMigration(migration *migrations.Migration) [
 		migration.Checksum, err == nil)
 
 	if err != nil {
-		errs = append(errs, err)
+		errs = append(errs, fmt.Errorf("migration %d: %w", migration.Version, err))
 	}
 
 	if len(errs) > 0 {
@@ -230,9 +229,9 @@ func (r *PostgresRepository) ExecuteHook(hook *migrations.Hook) error {
 	return nil
 }
 
-func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) []error {
+func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) error {
 	if migration.Type != enums.MIGRATION_DOWN {
-		return []error{fmt.Errorf("invalid migration type: %s", migration.Type.Name())}
+		return fmt.Errorf("invalid migration type: %s", migration.Type.Name())
 	}
 
 	query := fmt.Sprintf(`
@@ -244,18 +243,16 @@ func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) 
 	exists := false
 	err := r.queriable.QueryRowContext(r.ctx, query, migration.Version).Scan(&exists)
 	if err != nil {
-		return []error{err}
+		return err
 	}
 
 	if !exists {
 		return nil
 	}
 
-	errs := make([]error, 0)
-
 	_, err = r.queriable.ExecContext(r.ctx, *migration.Content)
 	if err != nil {
-		errs = append(errs, err)
+		return err
 	}
 
 	query = fmt.Sprintf(`
@@ -265,22 +262,16 @@ func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) 
 
 	res, err := r.queriable.ExecContext(r.ctx, query, migration.Version)
 	if err != nil {
-		errs = append(errs, err)
-		return errs
+		return err
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		errs = append(errs, err)
-		return errs
+		return err
 	}
 
 	if rowsAffected < 1 {
-		errs = append(errs, fmt.Errorf("version was not deleted from \"%s\" table", schema_history_table))
-	}
-
-	if len(errs) > 0 {
-		return errs
+		return fmt.Errorf("version was not deleted from \"%s\" table", schema_history_table)
 	}
 
 	return nil
@@ -342,46 +333,20 @@ func (r *PostgresRepository) Repair(migrations []*migrations.Migration) []error 
 
 	for _, migration := range migrations {
 		query := fmt.Sprintf(`
-            SELECT version, description, md5_checksum
-            FROM %s
-            WHERE version = $1;
-        `, schema_history_table)
+			INSERT INTO %s (version, description, md5_checksum, success, repaired_at)
+			VALUES ($1, $2, $3, true, NOW())
+			ON CONFLICT (version) DO UPDATE
+			SET description = EXCLUDED.description, md5_checksum = EXCLUDED.md5_checksum, success = true,
+				repaired_at = CASE
+					WHEN EXCLUDED.description <> %s.description OR EXCLUDED.md5_checksum <> %s.md5_checksum
+					THEN NOW()
+					ELSE %s.repaired_at
+				END;
+		`, schema_history_table, schema_history_table, schema_history_table, schema_history_table)
 
-		var storedVersion uint16
-		var storedDescription, storedChecksum string
-
-		err := r.queriable.QueryRowContext(r.ctx, query, migration.Version).Scan(&storedVersion, &storedDescription, &storedChecksum)
+		_, err := r.queriable.ExecContext(r.ctx, query, migration.Version, migration.Description, *migration.Checksum)
 		if err != nil {
-			if err == sql.ErrNoRows {
-				// Upsert the migration if it does not exist
-				insertQuery := fmt.Sprintf(`
-                    INSERT INTO %s (version, description, md5_checksum, success, repaired_at)
-                    VALUES ($1, $2, $3, true, NOW())
-                    ON CONFLICT (version) DO UPDATE
-                    SET description = $2, md5_checksum = $3, repaired_at = NOW();
-                `, schema_history_table)
-
-				_, err := r.queriable.ExecContext(r.ctx, insertQuery, migration.Version, migration.Description, *migration.Checksum)
-				if err != nil {
-					errs = append(errs, err)
-				}
-			} else {
-				errs = append(errs, err)
-			}
-			continue
-		}
-
-		if storedDescription != migration.Description || storedChecksum != *migration.Checksum {
-			updateQuery := fmt.Sprintf(`
-                UPDATE %s
-                SET description = $2, md5_checksum = $3, repaired_at = NOW()
-                WHERE version = $1;
-            `, schema_history_table)
-
-			_, err := r.queriable.ExecContext(r.ctx, updateQuery, migration.Version, migration.Description, *migration.Checksum)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			errs = append(errs, err)
 		}
 	}
 

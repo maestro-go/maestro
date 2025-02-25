@@ -2,6 +2,7 @@ package migrator
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/maestro-go/maestro/core/conf"
 	"github.com/maestro-go/maestro/core/database"
@@ -85,6 +86,22 @@ func (m *Migrator) Migrate() error {
 		}
 
 		if m.config.Validate {
+			failingMigrations, err := m.repository.GetFailingMigrations()
+			if err != nil {
+				return err
+			}
+
+			if len(failingMigrations) > 0 {
+				errs = make([]error, 0)
+				for _, failingMigration := range failingMigrations {
+					if m.logger != nil {
+						m.logger.Error("found an unsucceeded migration", zap.Uint16("version", failingMigration.Version))
+					}
+					errs = append(errs, fmt.Errorf("found an unsucceded migration: %d", failingMigration.Version))
+				}
+				return errors.Join(errs...)
+			}
+
 			errs = migrations.ValidateMigrations(migrationsMap[enums.MIGRATION_UP])
 			if len(errs) > 0 {
 				if m.logger != nil {
@@ -265,7 +282,7 @@ func (m *Migrator) migrateDown(migrations []*migrations.Migration, hooks map[enu
 	errs := make([]error, 0)
 
 	for _, migration := range migrations {
-		if from < migration.Version || to > migration.Version {
+		if from < migration.Version || to >= migration.Version {
 			continue
 		}
 
@@ -273,9 +290,9 @@ func (m *Migrator) migrateDown(migrations []*migrations.Migration, hooks map[enu
 			m.logger.Info("Rolling back", zap.Uint16("version", migration.Version),
 				zap.String("name", migration.Description))
 		}
-		mErrs := m.repository.RollbackMigration(migration)
-		if len(mErrs) > 0 {
-			errs = append(errs, mErrs...)
+		err := m.repository.RollbackMigration(migration)
+		if err != nil {
+			errs = append(errs, err)
 			if !m.config.Force {
 				return errs
 			}
@@ -302,9 +319,12 @@ func (m *Migrator) migrateDown(migrations []*migrations.Migration, hooks map[enu
 func (m *Migrator) executeHooks(hooks []*migrations.Hook) []error {
 	errs := make([]error, 0)
 	for _, hook := range hooks {
+		if m.logger != nil {
+			m.logger.Info("Executing hook", zap.Uint8("order", hook.Order), zap.String("type", hook.Type.Name()))
+		}
 		err := m.repository.ExecuteHook(hook)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("hook %d_%s: %w", hook.Order, hook.Type.Name(), err))
 			if !m.config.Force {
 				return errs
 			}
@@ -321,9 +341,14 @@ func (m *Migrator) executeVersionedHooks(version uint16, hooks []*migrations.Hoo
 	errs := make([]error, 0)
 	for _, hook := range hooks {
 		if version == hook.Version {
+			if m.logger != nil {
+				m.logger.Info("Executing versioned hook", zap.Uint8("order", hook.Order), zap.Uint16("version", hook.Version),
+					zap.String("type", hook.Type.Name()))
+			}
 			err := m.repository.ExecuteHook(hook)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, fmt.Errorf("versioned hook %d_%d_%s: %w", hook.Order,
+					hook.Version, hook.Type.Name(), err))
 				if !m.config.Force {
 					return errs
 				}

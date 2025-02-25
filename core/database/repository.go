@@ -63,8 +63,8 @@ type Repository interface {
 	// RollbackMigration executes the specified DOWN migration to revert changes made by a previous
 	// migration. After successful execution, the corresponding version is removed from the schema
 	// history table.
-	// Returns a slice of errors if there are issues executing the rollback.
-	RollbackMigration(migration *migrations.Migration) []error
+	// Returns an error if there is an issue executing the rollback.
+	RollbackMigration(migration *migrations.Migration) error
 
 	// Repair updates the md5 checksums, descriptions, or versions of migrations that mismatch
 	// the stored values in the schema history table. Updates the repaired_at timestamp to now.

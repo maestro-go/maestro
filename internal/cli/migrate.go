@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"path/filepath"
 
@@ -24,7 +25,7 @@ func SetupMigrateCommand() *cobra.Command {
 		Short: "Run database migrations",
 		Long: `The migrate command applies database migrations based on the configuration provided.
 It supports both "up" and "down" migrations, validates migrations if configured, and ensures the schema history table exists.`,
-		Run: runMigrateCommand,
+		RunE: runMigrateCommand,
 	}
 
 	migrateCmd.Flags().SortFlags = false
@@ -34,11 +35,11 @@ It supports both "up" and "down" migrations, validates migrations if configured,
 	return migrateCmd
 }
 
-func runMigrateCommand(cmd *cobra.Command, args []string) {
+func runMigrateCommand(cmd *cobra.Command, args []string) error {
 	logger, err := logger.NewLogger()
 	if err != nil {
 		log.Fatal(err)
-		return
+		return err
 	}
 
 	ctx := context.Background()
@@ -46,14 +47,14 @@ func runMigrateCommand(cmd *cobra.Command, args []string) {
 	globalFlags, err := flags.ExtractGlobalFlags(cmd)
 	if err != nil {
 		logger.Error("error extracting global flags", zap.Error(err))
-		return
+		return err
 	}
 
 	configFilePath := filepath.Join(globalFlags.Location, internalConf.DEFAULT_PROJECT_FILE)
 	exists, err := filesystem.CheckFSObject(configFilePath)
 	if err != nil {
 		logger.Error("error checking file", zap.Error(err))
-		return
+		return err
 	}
 
 	projectConfig := &conf.ProjectConfig{}
@@ -63,38 +64,38 @@ func runMigrateCommand(cmd *cobra.Command, args []string) {
 		err = conf.LoadConfigFromFile(configFilePath, projectConfig)
 		if err != nil {
 			logger.Error("error extracting config from file", zap.Error(err))
-			return
+			return err
 		}
 
 		err = flags.MergeDBConfigFlags(cmd, projectConfig)
 		if err != nil {
 			logger.Error("error merging database config flags", zap.Error(err))
-			return
+			return err
 		}
 
 		err = flags.MergeMigrationsConfigFlags(cmd, &projectConfig.Migration)
 		if err != nil {
 			logger.Error("error merging migrations config flags", zap.Error(err))
-			return
+			return err
 		}
 
 		err = flags.MergeMigrationLocations(cmd, &projectConfig.Migration)
 		if err != nil {
 			logger.Error("error merging migrations locations flag", zap.Error(err))
-			return
+			return err
 		}
 
 	} else {
 		err = flags.ExtractDBConfigFlags(cmd, projectConfig)
 		if err != nil {
 			logger.Error("error extracting database config flags", zap.Error(err))
-			return
+			return err
 		}
 
 		err = flags.ExtractMigrationConfigFlags(cmd, &projectConfig.Migration)
 		if err != nil {
 			logger.Error("error extracting migrations config flags", zap.Error(err))
-			return
+			return err
 		}
 
 		projectConfig.Migration.Locations = globalFlags.MigrationLocations
@@ -103,21 +104,23 @@ func runMigrateCommand(cmd *cobra.Command, args []string) {
 	driver, ok := enums.MapStringToDriverType[projectConfig.Driver]
 	if !ok {
 		logger.Error("invalid driver", zap.String("driver", projectConfig.Driver))
-		return
+		return fmt.Errorf("invalid driver: %s", projectConfig.Driver)
 	}
 
 	repo, cleanup, err := conn.ConnectToDatabase(ctx, projectConfig, driver)
 	if err != nil {
 		logger.Error("error connecting to database", zap.Error(err))
-		return
+		return err
 	}
 	defer cleanup()
 
 	migrator := migrator.NewMigrator(logger, repo, &projectConfig.Migration)
 	err = migrator.Migrate()
 	if err != nil {
-		return
+		return err
 	}
 
 	logger.Info("Migrations executed successfully")
+
+	return nil
 }

@@ -17,6 +17,13 @@ const (
 	HOOK_AFTER_VERSION
 )
 
+var hooksNames = []string{"REPEATABLE", "REPEATABLE_DOWN", "BEFORE", "BEFORE_EACH", "BEFORE_VERSION",
+	"AFTER", "AFTER_EACH", "AFTER_VERSION"}
+
+func (h *HookType) Name() string {
+	return hooksNames[*h]
+}
+
 var MapHookTypeToRegex = map[HookType]string{
 	HOOK_REPEATABLE:      conf.HOOK_REPEATABLE_REGEX,
 	HOOK_REPEATABLE_DOWN: conf.HOOK_REPEATABLE_DOWN_REGEX,

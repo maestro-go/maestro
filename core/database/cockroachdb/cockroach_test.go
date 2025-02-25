@@ -251,15 +251,15 @@ func (s *MigrationTestSuite) TestRollbackMigration() {
 		Content:     &content,
 	}
 
-	errs := s.repository.RollbackMigration(migration)
-	s.Assert().Len(errs, 1)
+	err := s.repository.RollbackMigration(migration)
+	s.Assert().Error(err)
 
 	*migration.Content = "DROP TABLE IF EXISTS test4;"
 
-	errs = s.repository.RollbackMigration(migration)
-	s.Assert().Len(errs, 1)
+	err = s.repository.RollbackMigration(migration)
+	s.Assert().Error(err)
 
-	err := s.repository.AssertSchemaHistoryTable()
+	err = s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
 
 	_, err = s.suiteDb.ExecContext(s.ctx, "CREATE TABLE test4 (id INT NOT NULL PRIMARY KEY);")
@@ -283,8 +283,8 @@ func (s *MigrationTestSuite) TestRollbackMigration() {
 	s.Assert().NoError(err)
 	s.Assert().True(exists)
 
-	errs = s.repository.RollbackMigration(migration)
-	s.Assert().Nil(errs)
+	err = s.repository.RollbackMigration(migration)
+	s.Assert().NoError(err)
 
 	s.checkTableExists("test4", false)
 
@@ -394,4 +394,25 @@ func (s *MigrationTestSuite) TestRepair() {
 	err = s.suiteDb.QueryRowContext(s.ctx, query, migrations[1].Version).Scan(&repairedChecksum)
 	s.Assert().NoError(err)
 	s.Assert().Equal(*migrations[1].Checksum, repairedChecksum)
+}
+
+func (s *MigrationTestSuite) TestGetFailingMigrations() {
+	err := s.repository.AssertSchemaHistoryTable()
+	s.Assert().NoError(err)
+
+	query := fmt.Sprintf(`
+		INSERT INTO %s (version, description, md5_checksum, success) VALUES
+			(1, 't', '0a52730597fb4ffa01fc117d9e71e3a9', false),
+			(2, 't', '0a52730597fb4ffa01fc117d9e71e3a9', true),
+			(3, 't', '0a52730597fb4ffa01fc117d9e71e3a9', false);
+	`, schema_history_table)
+
+	_, err = s.suiteDb.Exec(query)
+	s.Assert().NoError(err)
+
+	failingMigrations, err := s.repository.GetFailingMigrations()
+	s.Assert().NoError(err)
+	s.Assert().Len(failingMigrations, 2)
+	s.Assert().Equal(uint16(1), failingMigrations[0].Version)
+	s.Assert().Equal(uint16(3), failingMigrations[1].Version)
 }
