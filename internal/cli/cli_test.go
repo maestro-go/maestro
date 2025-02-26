@@ -249,6 +249,13 @@ func (s *CliTestSuite) TestEntirePipeline() {
 		s.Assert().Error(err)
 	})
 
+	s.Run("test status command with failing migrations", func() {
+		rootCmd := SetupRootCommand()
+		rootCmd.SetArgs([]string{"status", "-l", projectDir})
+		err := rootCmd.Execute()
+		s.Assert().NoError(err)
+	})
+
 	// Fix migration 1
 	s.checkFileExists(migrationsDir, "V001_example.sql", true)
 	s.insertMigration(enums.MIGRATION_UP, migrationsDir, 1, "example", "CREATE TABLE test1 (id SERIAL PRIMARY KEY, name varchar(255))")
@@ -272,9 +279,17 @@ func (s *CliTestSuite) TestEntirePipeline() {
 		err := rootCmd.Execute()
 		s.Require().Error(err)
 
-		// Reset file
-		s.insertMigration(enums.MIGRATION_UP, migrationsDir, 1, "example", "CREATE TABLE test1 (id SERIAL PRIMARY KEY, name varchar(255))")
 	})
+
+	s.Run("test status command with failing md5 checksum", func() {
+		rootCmd := SetupRootCommand()
+		rootCmd.SetArgs([]string{"status", "-l", projectDir})
+		err := rootCmd.Execute()
+		s.Require().NoError(err)
+	})
+
+	// Reset file
+	s.insertMigration(enums.MIGRATION_UP, migrationsDir, 1, "example", "CREATE TABLE test1 (id SERIAL PRIMARY KEY, name varchar(255))")
 
 	s.insertMigration(enums.MIGRATION_UP, migrationsDir, 3, "example", "CREATE TABLE test3 (id SERIAL PRIMARY KEY, name varchar(255))")
 	s.insertMigration(enums.MIGRATION_DOWN, migrationsDir, 1, "example", "DROP TABLE IF EXISTS test1;")
@@ -325,5 +340,16 @@ func (s *CliTestSuite) TestEntirePipeline() {
 		s.checkTableExists("test1", true)
 		s.checkTableExists("test2", false)
 		s.checkTableExists("test3", false)
+	})
+
+	s.Run("test all flags merge", func() {
+		rootCmd := SetupRootCommand()
+		rootCmd.SetArgs([]string{"migrate", "-l", projectDir, "--validate=true", "--in-transaction=true",
+			"--force=false", "--use-repeatable=true", "--use-before=true", "--use-after=true", "--use-before-each=true",
+			"--use-after-each=true", "--use-before-version=true", "--use-after-version=true", "--driver=postgres",
+			"--host=localhost", "--port", s.postgres.Port, "--database", s.postgres.Database, "--user", s.postgres.Username,
+			"--password", s.postgres.Password, "--schema=public", "--sslmode=disable", "--sslrootcert=\"\""})
+		err := rootCmd.Execute()
+		s.Assert().NoError(err)
 	})
 }
