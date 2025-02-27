@@ -47,7 +47,7 @@ func (m *Migrator) Migrate() error {
 		if len(errs) > 0 {
 			if m.logger != nil {
 				for _, err := range errs {
-					m.logger.Error("error loading migrations and hooks", zap.Error(err))
+					m.logger.Error("Error loading migrations and hooks", zap.Error(err))
 				}
 			}
 			return errors.Join(errs...)
@@ -56,20 +56,20 @@ func (m *Migrator) Migrate() error {
 		err := m.repository.AssertSchemaHistoryTable()
 		if err != nil {
 			if m.logger != nil {
-				m.logger.Error("error asserting schema history table", zap.Error(err))
+				m.logger.Error("Error asserting schema history table", zap.Error(err))
 			}
 			return err
 		}
 
 		latestMigration, err := m.repository.GetLatestMigration()
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting latest migration: %w", err)
 		}
 
 		if (!m.config.Down && len(migrationsMap[enums.MIGRATION_UP]) < 1) ||
 			(m.config.Down && len(migrationsMap[enums.MIGRATION_DOWN]) < 1) {
 			if m.logger != nil {
-				m.logger.Warn("no migrations found in the specified directories")
+				m.logger.Warn("No migrations found in the specified directories")
 			}
 			return nil
 		}
@@ -88,16 +88,16 @@ func (m *Migrator) Migrate() error {
 		if m.config.Validate {
 			failingMigrations, err := m.repository.GetFailingMigrations()
 			if err != nil {
-				return err
+				return fmt.Errorf("error getting failing migrations: %w", err)
 			}
 
 			if len(failingMigrations) > 0 {
 				errs = make([]error, 0)
 				for _, failingMigration := range failingMigrations {
 					if m.logger != nil {
-						m.logger.Error("found an unsucceeded migration", zap.Uint16("version", failingMigration.Version))
+						m.logger.Error("Found an unsucceeded migration", zap.Uint16("version", failingMigration.Version))
 					}
-					errs = append(errs, fmt.Errorf("found an unsucceded migration: %d", failingMigration.Version))
+					errs = append(errs, fmt.Errorf("found an unsucceeded migration: %d", failingMigration.Version))
 				}
 				return errors.Join(errs...)
 			}
@@ -106,7 +106,7 @@ func (m *Migrator) Migrate() error {
 			if len(errs) > 0 {
 				if m.logger != nil {
 					for _, err := range errs {
-						m.logger.Error("validate local migrations error", zap.Error(err))
+						m.logger.Error("Validate local migrations error", zap.Error(err))
 					}
 				}
 				return errors.Join(errs...)
@@ -116,7 +116,7 @@ func (m *Migrator) Migrate() error {
 			if len(errs) > 0 {
 				if m.logger != nil {
 					for _, err := range errs {
-						m.logger.Error("validate database migrations error", zap.Error(err))
+						m.logger.Error("Validate database migrations error", zap.Error(err))
 					}
 				}
 				return errors.Join(errs...)
@@ -125,21 +125,21 @@ func (m *Migrator) Migrate() error {
 
 		if latestMigration == *m.config.Destination {
 			if m.logger != nil {
-				m.logger.Info("Database is up to date")
+				m.logger.Info("Database is up to date", zap.Uint16("version", latestMigration))
 			}
 			return nil
 		}
 
 		if !m.config.Down && *m.config.Destination < latestMigration {
 			if m.logger != nil {
-				m.logger.Warn("trying to up migrate to a previous version")
+				m.logger.Warn("Trying to up migrate to a previous version", zap.Uint16("current", latestMigration), zap.Uint16("target", *m.config.Destination))
 			}
 			return nil
 		}
 
 		if m.config.Down && *m.config.Destination > latestMigration {
 			if m.logger != nil {
-				m.logger.Warn("trying to down migrate to a latest version")
+				m.logger.Warn("Trying to down migrate to a later version", zap.Uint16("current", latestMigration), zap.Uint16("target", *m.config.Destination))
 			}
 			return nil
 		}
@@ -150,7 +150,7 @@ func (m *Migrator) Migrate() error {
 				if len(errs) > 0 {
 					if m.logger != nil {
 						for _, err := range errs {
-							m.logger.Error("error migrating down", zap.Error(err))
+							m.logger.Error("Error migrating down", zap.Error(err))
 						}
 					}
 					return errors.Join(errs...)
@@ -162,7 +162,7 @@ func (m *Migrator) Migrate() error {
 			if len(errs) > 0 {
 				if m.logger != nil {
 					for _, err := range errs {
-						m.logger.Error("error migrating up", zap.Error(err))
+						m.logger.Error("Error migrating up", zap.Error(err))
 					}
 				}
 				return errors.Join(errs...)
@@ -219,7 +219,7 @@ func (m *Migrator) migrateUp(migrations []*migrations.Migration, hooks map[enums
 		}
 
 		if m.logger != nil {
-			m.logger.Info("Migrating", zap.Uint16("version", migration.Version),
+			m.logger.Info("Migrating up", zap.Uint16("version", migration.Version),
 				zap.String("description", migration.Description))
 		}
 		mErrs := m.repository.ExecuteMigration(migration)
@@ -288,11 +288,11 @@ func (m *Migrator) migrateDown(migrations []*migrations.Migration, hooks map[enu
 
 		if m.logger != nil {
 			m.logger.Info("Rolling back", zap.Uint16("version", migration.Version),
-				zap.String("name", migration.Description))
+				zap.String("description", migration.Description))
 		}
 		err := m.repository.RollbackMigration(migration)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("error rolling back migration %d: %w", migration.Version, err))
 			if !m.config.Force {
 				return errs
 			}
@@ -324,7 +324,7 @@ func (m *Migrator) executeHooks(hooks []*migrations.Hook) []error {
 		}
 		err := m.repository.ExecuteHook(hook)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("hook %d_%s: %w", hook.Order, hook.Type.Name(), err))
+			errs = append(errs, fmt.Errorf("error executing hook %d_%s: %w", hook.Order, hook.Type.Name(), err))
 			if !m.config.Force {
 				return errs
 			}
@@ -347,7 +347,7 @@ func (m *Migrator) executeVersionedHooks(version uint16, hooks []*migrations.Hoo
 			}
 			err := m.repository.ExecuteHook(hook)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("versioned hook %d_%d_%s: %w", hook.Order,
+				errs = append(errs, fmt.Errorf("error executing versioned hook %d_%d_%s: %w", hook.Order,
 					hook.Version, hook.Type.Name(), err))
 				if !m.config.Force {
 					return errs
