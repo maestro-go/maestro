@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/maestro-go/maestro?color=red" alt="GitHub Release">
+  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/maestro-go/maestro">
   <img src="https://img.shields.io/badge/Go-1.22%2C%201.23-blue.svg" alt="Supported Go Versions">
   <a href="https://goreportcard.com/report/github.com/maestro-go/maestro">
     <img src="https://goreportcard.com/badge/github.com/maestro-go/maestro" alt="Go Report Card">

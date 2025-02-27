@@ -4,6 +4,14 @@
 
 The Maestro CLI is a powerful tool for managing database migrations. It provides commands to create, apply, repair, and check the status of migrations. This documentation covers the available commands and their usage. For more information about each command, use the `-h` or `--help` flag.
 
+## Installation
+
+To install the Maestro CLI tool, run the following command:
+
+```bash
+go install github.com/maestro-go/maestro@latest
+```
+
 ## Commands
 
 ### `init`
@@ -80,6 +88,9 @@ maestro repair
 This command performs the following:
 1. Connects to the database using the provided configuration.
 2. Recalculates and updates the checksums of migration files in the schema history table.
+3. Sets all migrations to `succeeded = true`.
+
+> Note: This is only recommended if you have already run the migration manually, as it sets `succeeded = true`.
 
 ### `status`
 

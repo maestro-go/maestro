@@ -8,7 +8,7 @@ import (
 
 	"github.com/maestro-go/maestro/core/enums"
 	"github.com/maestro-go/maestro/internal/migrations"
-	testUtils "github.com/maestro-go/maestro/internal/pkg/testing"
+	testUtils "github.com/maestro-go/maestro/internal/utils/testing"
 	"github.com/stretchr/testify/suite"
 
 	_ "github.com/lib/pq"

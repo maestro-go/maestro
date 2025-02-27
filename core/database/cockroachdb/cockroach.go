@@ -333,7 +333,7 @@ func (r *CockroachRepository) lock() error {
 	`
 
 	success := false
-	for i := 0; i < 12; i++ {
+	for range 12 {
 		exists := false
 		err := r.db.QueryRowContext(r.ctx, query, lock_table).Scan(&exists)
 		if err != nil {
