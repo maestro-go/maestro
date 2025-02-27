@@ -13,7 +13,7 @@ import (
 	"github.com/maestro-go/maestro/internal/cli/flags"
 	internalConf "github.com/maestro-go/maestro/internal/conf"
 	"github.com/maestro-go/maestro/internal/filesystem"
-	"github.com/maestro-go/maestro/internal/pkg/logger"
+	"github.com/maestro-go/maestro/internal/utils/logger"
 	"github.com/spf13/cobra"
 )
 

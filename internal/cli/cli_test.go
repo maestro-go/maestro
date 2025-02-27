@@ -15,7 +15,7 @@ import (
 	"github.com/maestro-go/maestro/core/database"
 	"github.com/maestro-go/maestro/core/database/postgres"
 	"github.com/maestro-go/maestro/core/enums"
-	testUtils "github.com/maestro-go/maestro/internal/pkg/testing"
+	testUtils "github.com/maestro-go/maestro/internal/utils/testing"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
 )
