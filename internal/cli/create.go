@@ -51,29 +51,29 @@ func runCreateCommand(cmd *cobra.Command, args []string) error {
 
 	globalFlags, err := flags.ExtractGlobalFlags(cmd)
 	if err != nil {
-		logger.Error("error extracting global flags", zap.Error(err))
-		return err
+		logError(logger, ErrExtractGlobalFlags, err)
+		return genError(ErrExtractGlobalFlags, err)
 	}
 
 	configFilePath := filepath.Join(globalFlags.Location, internalConf.DEFAULT_PROJECT_FILE)
 	configExists, err := filesystem.CheckFSObject(configFilePath)
 	if err != nil {
-		logger.Error("error checking file", zap.Error(err))
-		return err
+		logError(logger, ErrCheckFile, err)
+		return genError(ErrCheckFile, err)
 	}
 
 	projectConfig := &conf.ProjectConfig{}
 	if configExists {
 		err := conf.LoadConfigFromFile(configFilePath, projectConfig)
 		if err != nil {
-			logger.Error("error loading config from file", zap.Error(err))
-			return err
+			logError(logger, ErrLoadConfigFromFile, err)
+			return genError(ErrLoadConfigFromFile, err)
 		}
 
 		err = flags.MergeMigrationLocations(cmd, &projectConfig.Migration)
 		if err != nil {
-			logger.Error("error merging migrations location", zap.Error(err))
-			return err
+			logError(logger, ErrMergeMigrationLocations, err)
+			return genError(ErrMergeMigrationLocations, err)
 		}
 	} else {
 		projectConfig.Migration.Locations = globalFlags.MigrationLocations
@@ -81,8 +81,8 @@ func runCreateCommand(cmd *cobra.Command, args []string) error {
 
 	latestVersion, err := filesystem.GetLatestVersionFromFiles(projectConfig.Migration.Locations)
 	if err != nil {
-		logger.Error("error getting latest version in files", zap.Error(err))
-		return err
+		logError(logger, ErrGetLatestVersion, err)
+		return genError(ErrGetLatestVersion, err)
 	}
 
 	newMigrationPath := filepath.Join(projectConfig.Migration.Locations[0],
@@ -90,14 +90,14 @@ func runCreateCommand(cmd *cobra.Command, args []string) error {
 
 	err = os.WriteFile(newMigrationPath, []byte(internalConf.NEW_MIGRATION_PLACEHOLDER), os.ModePerm)
 	if err != nil {
-		logger.Error("error writing migration", zap.Error(err))
-		return err
+		logError(logger, ErrWriteMigration, err)
+		return genError(ErrWriteMigration, err)
 	}
 
 	withDown, err := cmd.Flags().GetBool("with-down")
 	if err != nil {
-		logger.Error("error reading with-down flag", zap.Error(err))
-		return err
+		logError(logger, ErrReadWithDownFlag, err)
+		return genError(ErrReadWithDownFlag, err)
 	}
 
 	if withDown {
@@ -106,8 +106,8 @@ func runCreateCommand(cmd *cobra.Command, args []string) error {
 
 		err = os.WriteFile(newDownMigrationPath, []byte(internalConf.NEW_MIGRATION_PLACEHOLDER), os.ModePerm)
 		if err != nil {
-			logger.Error("error writing down migration", zap.Error(err))
-			return err
+			logError(logger, ErrWriteMigration, err)
+			return genError(ErrWriteMigration, err)
 		}
 	}
 

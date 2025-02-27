@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -45,16 +46,16 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 
 	globalFlags, err := flags.ExtractGlobalFlags(cmd)
 	if err != nil {
-		logger.Error("error extracting global flags", zap.Error(err))
-		return err
+		logError(logger, ErrExtractGlobalFlags, err)
+		return genError(ErrExtractGlobalFlags, err)
 	}
 
 	configFilePath := filepath.Join(globalFlags.Location, internalConf.DEFAULT_PROJECT_FILE)
 
 	exists, err := filesystem.CheckFSObject(configFilePath)
 	if err != nil {
-		logger.Error("error checking file", zap.Error(err))
-		return err
+		logError(logger, ErrCheckFile, err)
+		return genError(ErrCheckFile, err)
 	}
 
 	if exists {
@@ -64,17 +65,15 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 
 	err = insertConfigFile(configFilePath, globalFlags.MigrationLocations)
 	if err != nil {
-		logger.Error("error creating config file", zap.Error(err))
-		return err
+		logError(logger, ErrWriteMigration, err)
+		return genError(ErrWriteMigration, err)
 	}
 
 	errs := insertMigrationFolders(globalFlags.MigrationLocations)
 	if len(errs) > 0 {
-		for _, err = range errs {
-			logger.Error("error creating migration", zap.Error(err))
-		}
+		logErrors(logger, ErrWriteMigration, errs)
 		os.RemoveAll(configFilePath) // Rollback
-		return err
+		return errors.Join(errs...)
 	}
 
 	logger.Info("Maestro project successfully initialized", zap.String("configuration file", configFilePath),

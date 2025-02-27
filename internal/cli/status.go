@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"path/filepath"
 
@@ -44,15 +43,15 @@ func runStatusCommand(cmd *cobra.Command, args []string) error {
 
 	globalFlags, err := flags.ExtractGlobalFlags(cmd)
 	if err != nil {
-		logger.Error("error extracting global flags", zap.Error(err))
-		return err
+		logError(logger, ErrExtractGlobalFlags, err)
+		return genError(ErrExtractGlobalFlags, err)
 	}
 
 	configFilePath := filepath.Join(globalFlags.Location, internalConf.DEFAULT_PROJECT_FILE)
 	exists, err := filesystem.CheckFSObject(configFilePath)
 	if err != nil {
-		logger.Error("error checking file", zap.Error(err))
-		return err
+		logError(logger, ErrCheckFile, err)
+		return genError(ErrCheckFile, err)
 	}
 
 	projectConfig := &conf.ProjectConfig{}
@@ -61,72 +60,78 @@ func runStatusCommand(cmd *cobra.Command, args []string) error {
 
 		err = conf.LoadConfigFromFile(configFilePath, projectConfig)
 		if err != nil {
-			logger.Error("error extracting config from file", zap.Error(err))
-			return err
+			logError(logger, ErrExtractConfigFromFile, err)
+			return genError(ErrExtractConfigFromFile, err)
 		}
 
 		err = flags.MergeDBConfigFlags(cmd, projectConfig)
 		if err != nil {
-			logger.Error("error merging database config flags", zap.Error(err))
-			return err
+			logError(logger, ErrMergeDBConfigFlags, err)
+			return genError(ErrMergeDBConfigFlags, err)
+		}
+
+		err = flags.MergeMigrationLocations(cmd, &projectConfig.Migration)
+		if err != nil {
+			logError(logger, ErrMergeMigrationLocations, err)
+			return genError(ErrMergeMigrationLocations, err)
 		}
 
 	} else {
 		err = flags.ExtractDBConfigFlags(cmd, projectConfig)
 		if err != nil {
-			logger.Error("error extracting database config flags", zap.Error(err))
-			return err
+			logError(logger, ErrExtractDBConfigFlags, err)
+			return genError(ErrExtractDBConfigFlags, err)
 		}
+
+		projectConfig.Migration.Locations = globalFlags.MigrationLocations
 	}
 
 	driver, ok := enums.MapStringToDriverType[projectConfig.Driver]
 	if !ok {
-		logger.Error("invalid driver", zap.String("driver", projectConfig.Driver))
-		return fmt.Errorf("invalid driver %s", projectConfig.Driver)
+		logError(logger, ErrInvalidDriver, errors.New(projectConfig.Driver))
+		return genError(ErrInvalidDriver, errors.New(projectConfig.Driver))
 	}
 
 	repo, cleanup, err := conn.ConnectToDatabase(ctx, projectConfig, driver)
 	if err != nil {
-		logger.Error("error connecting to database", zap.Error(err))
-		return err
+		logError(logger, ErrConnectToDatabase, err)
+		return genError(ErrConnectToDatabase, err)
 	}
 	defer cleanup()
 
 	// Log the latest migration
 	latestMigration, err := repo.GetLatestMigration()
 	if err != nil {
-		logger.Error("error getting latest migration", zap.Error(err))
-		return err
+		logError(logger, ErrGetFailingMigrations, err)
+		return genError(ErrGetFailingMigrations, err)
 	}
-	logger.Info("Latest migration", zap.Uint16("version", latestMigration))
 
 	// Load migrations
 	migrations, _, errs := filesystem.LoadObjectsFromFiles(&projectConfig.Migration)
 	if len(errs) > 0 {
-		for _, err := range errs {
-			logger.Error("error loading migrations", zap.Error(err))
-		}
+		logErrors(logger, ErrLoadMigrations, errs)
 		return errors.Join(errs...)
 	}
 
 	// Validate migrations
 	validationErrors := repo.ValidateMigrations(migrations[enums.MIGRATION_UP])
 	if len(validationErrors) > 0 {
-		for _, err := range validationErrors {
-			logger.Warn("validation error", zap.Error(err))
-		}
+		logErrors(logger, ErrValidation, validationErrors)
 	}
 
 	// Log failing migrations
 	failingMigrations, err := repo.GetFailingMigrations()
 	if err != nil {
-		logger.Error("error getting failing migrations", zap.Error(err))
-		return err
+		logError(logger, ErrGetFailingMigrations, err)
+		return genError(ErrGetFailingMigrations, err)
 	}
 
 	for _, migration := range failingMigrations {
 		logger.Info("Failing migration", zap.Uint16("version", migration.Version), zap.String("description", migration.Description))
 	}
+
+	logger.Info("Migrations status:", zap.Uint16("latest migration", latestMigration), zap.Int("migrations mismatches",
+		len(validationErrors)), zap.Int("failing migrations", len(failingMigrations)))
 
 	return nil
 }
