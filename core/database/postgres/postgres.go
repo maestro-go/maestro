@@ -178,7 +178,7 @@ func (r *PostgresRepository) ValidateMigrations(migrations []*migrations.Migrati
 		}
 
 		errs = append(errs, fmt.Errorf("invalid migration found: version: %d, description: %s, md5_checksum: %s."+
-			" please check your local migration and changes", res.version, res.description, res.md5_checksum))
+			" Please check your local migration and changes", res.version, res.description, res.md5_checksum))
 	}
 
 	if len(errs) > 0 {
