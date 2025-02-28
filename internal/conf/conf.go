@@ -1,7 +1,7 @@
 package conf
 
 // Lib version
-const VERSION = "0.0.0"
+const VERSION = "v1.0.0"
 
 // Default values
 const (
