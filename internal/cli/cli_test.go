@@ -138,6 +138,16 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	os.Mkdir(migrationsDir, os.ModePerm)
 	defer s.clearDir(projectDir)
 
+	s.Run("test root command", func() {
+		rootCmd := SetupRootCommand()
+		err := rootCmd.Execute()
+		s.Assert().NoError(err)
+
+		rootCmd.SetArgs([]string{"-V"})
+		err = rootCmd.Execute()
+		s.Assert().NoError(err)
+	})
+
 	s.Run("test command flags", func() {
 		rootCmd := SetupRootCommand()
 		s.insertMigration(enums.MIGRATION_UP, migrationsDir, 1, "test", "CREATE TABLE test1 (id SERIAL PRIMARY KEY);")
