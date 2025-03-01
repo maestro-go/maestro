@@ -113,15 +113,17 @@ func (r *CockroachRepository) ValidateMigrations(migrations []*migrations.Migrat
 		return nil
 	}
 
-	migrationsTuples := make([]string, 0)
-	for _, migration := range migrations {
+	tuples := make([]string, 0, len(migrations))
+	params := make([]any, 0, len(migrations)*3)
+	for i, migration := range migrations {
 
 		if migration.Type != enums.MIGRATION_UP {
 			return []error{fmt.Errorf("invalid migration type: %s", migration.Type.Name())}
 		}
 
-		migrationsTuples = append(migrationsTuples,
-			fmt.Sprintf("(%d, '%s', '%s')", migration.Version, migration.Description, *migration.Checksum))
+		offset := i * 3
+		tuples = append(tuples, fmt.Sprintf("($%d, $%d, $%d)", offset+1, offset+2, offset+3))
+		params = append(params, migration.Version, migration.Description, *migration.Checksum)
 	}
 
 	// Check gaps
@@ -157,9 +159,9 @@ func (r *CockroachRepository) ValidateMigrations(migrations []*migrations.Migrat
 		SELECT version, description, md5_checksum
 		FROM %s
 		WHERE success = true AND (version, description, md5_checksum) NOT IN (%s);
-	`, schema_history_table, strings.Join(migrationsTuples, ", "))
+	`, schema_history_table, strings.Join(tuples, ", "))
 
-	rows, err := r.queriable.QueryContext(r.ctx, query)
+	rows, err := r.queriable.QueryContext(r.ctx, query, params...)
 	if err != nil {
 		return []error{err}
 	}
