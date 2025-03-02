@@ -138,9 +138,9 @@ func (r *CockroachRepository) ValidateMigrations(migrations []*migrations.Migrat
 	defer versionsRows.Close()
 
 	errs := make([]error, 0)
-
 	expectedVersion := uint16(1)
 	actualVersion := uint16(0)
+
 	for versionsRows.Next() {
 		err = versionsRows.Scan(&actualVersion)
 		if err != nil {
@@ -437,11 +437,9 @@ func (r *CockroachRepository) GetFailingMigrations() ([]*migrations.Migration, e
 	var failingMigrations []*migrations.Migration
 	for rows.Next() {
 		var migration migrations.Migration
-		var checksum string
-		if err := rows.Scan(&migration.Version, &migration.Description, &checksum); err != nil {
+		if err := rows.Scan(&migration.Version, &migration.Description, &migration.Checksum); err != nil {
 			return nil, err
 		}
-		migration.Checksum = &checksum
 		failingMigrations = append(failingMigrations, &migration)
 	}
 

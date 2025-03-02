@@ -29,20 +29,10 @@ func NewMigrator(logger *zap.Logger, repository database.Repository, config *con
 }
 
 // Migrate performs database migrations based on the configuration and current state of the database.
-// It handles both "up" and "down" migrations, validates migrations if configured, and ensures
-// the schema history table exists. The function operates within a distributed lock to prevent
-// concurrent migrations.
-//
-// Steps:
-//  1. Load migrations and hooks from the filesystem.
-//  2. Ensure the schema history table exists.
-//  3. Determine the latest applied migration version.
-//  4. Validate migrations (if enabled in the configuration).
-//  5. Determine the target migration version (destination).
-//  6. Execute the appropriate migration (up or down) based on the configuration.
-//  7. Log errors and warnings throughout the process.
 func (m *Migrator) Migrate() error {
 	return m.repository.DoInLock(func() error {
+
+		// Load migrations and hooks to memory
 		migrationsMap, hooksMap, errs := filesystem.LoadObjectsFromFiles(m.config)
 		if len(errs) > 0 {
 			if m.logger != nil {
@@ -53,6 +43,7 @@ func (m *Migrator) Migrate() error {
 			return errors.Join(errs...)
 		}
 
+		// Assert that schema history table exists
 		err := m.repository.AssertSchemaHistoryTable()
 		if err != nil {
 			if m.logger != nil {
@@ -86,6 +77,8 @@ func (m *Migrator) Migrate() error {
 		}
 
 		if m.config.Validate {
+
+			// Assert that there are no unsucceeded migrations in database
 			failingMigrations, err := m.repository.GetFailingMigrations()
 			if err != nil {
 				return fmt.Errorf("error getting failing migrations: %w", err)
@@ -102,6 +95,7 @@ func (m *Migrator) Migrate() error {
 				return errors.Join(errs...)
 			}
 
+			// Validate local migrations
 			errs = migrations.ValidateMigrations(migrationsMap[enums.MIGRATION_UP])
 			if len(errs) > 0 {
 				if m.logger != nil {
@@ -112,6 +106,7 @@ func (m *Migrator) Migrate() error {
 				return errors.Join(errs...)
 			}
 
+			// Validate local <-> remote migrations
 			errs = m.repository.ValidateMigrations(migrationsMap[enums.MIGRATION_UP])
 			if len(errs) > 0 {
 				if m.logger != nil {
@@ -144,6 +139,7 @@ func (m *Migrator) Migrate() error {
 			return nil
 		}
 
+		// Define the migrate function to handle the migration process, either within a transaction or not
 		migrate := func() error {
 			if m.config.Down {
 				errs := m.migrateDown(migrationsMap[enums.MIGRATION_DOWN], hooksMap, latestMigration, *m.config.Destination)
