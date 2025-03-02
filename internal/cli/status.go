@@ -115,15 +115,16 @@ func runStatusCommand(cmd *cobra.Command, args []string) error {
 
 	// Validate migrations
 	validationErrors := repo.ValidateMigrations(migrations[enums.MIGRATION_UP])
-	if len(validationErrors) > 0 {
-		logErrors(logger, ErrValidation, validationErrors)
-	}
 
 	// Log failing migrations
 	failingMigrations, err := repo.GetFailingMigrations()
 	if err != nil {
 		logError(logger, ErrGetFailingMigrations, err)
 		return genError(ErrGetFailingMigrations, err)
+	}
+
+	for _, validationError := range validationErrors {
+		logger.Info("validation error: ", zap.String("error", validationError.Error()))
 	}
 
 	for _, migration := range failingMigrations {

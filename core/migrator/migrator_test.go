@@ -134,6 +134,30 @@ func TestMigrationSuite(t *testing.T) {
 	suite.Run(t, new(MigrationTestSuite))
 }
 
+func (s *MigrationTestSuite) TestMigrateFailingWithInvalidDir() {
+	migrator := NewMigrator(zap.NewNop(), s.repository, &conf.MigrationConfig{
+		Locations: []string{"Invalid dir"},
+		Validate:  true,
+		Down:      false,
+	})
+
+	err := migrator.Migrate()
+	s.Assert().Error(err)
+}
+
+func (s *MigrationTestSuite) TestMigrateWithoutMigrations() {
+	migrationsDir := s.T().TempDir()
+
+	migrator := NewMigrator(zap.NewNop(), s.repository, &conf.MigrationConfig{
+		Locations: []string{migrationsDir},
+		Validate:  true,
+		Down:      false,
+	})
+
+	err := migrator.Migrate()
+	s.Assert().NoError(err)
+}
+
 func (s *MigrationTestSuite) TestMigrateUp() {
 	migrationsDir := s.T().TempDir()
 
@@ -271,5 +295,120 @@ func (s *MigrationTestSuite) TestErrors() {
 	})
 
 	err := migrator.Migrate()
+	s.Assert().Error(err)
+}
+
+func (s *MigrationTestSuite) TestInvalidMigrationsDestination() {
+	migrationsDir := s.T().TempDir()
+
+	upContent1 := "CREATE TABLE test1 (id SERIAL PRIMARY KEY);"
+	upContent2 := "CREATE TABLE test2 (id SERIAL PRIMARY KEY);"
+
+	s.insertMigration(migrationsDir, 1, "test1", &upContent1, false)
+	s.insertMigration(migrationsDir, 2, "test2", &upContent2, false)
+
+	migrator := NewMigrator(zap.NewNop(), s.repository, &conf.MigrationConfig{
+		Locations:     []string{migrationsDir},
+		Validate:      true,
+		Down:          false,
+		InTransaction: true,
+	})
+
+	err := migrator.Migrate()
+	s.Assert().NoError(err)
+
+	s.checkTableExists("test1", true)
+	s.checkTableExists("test2", true)
+
+	migrator = NewMigrator(zap.NewNop(), s.repository, &conf.MigrationConfig{
+		Locations:     []string{migrationsDir},
+		Validate:      true,
+		Down:          false,
+		InTransaction: true,
+		Destination:   testUtils.ToPtr(uint16(1)),
+	})
+
+	err = migrator.Migrate()
+	s.Assert().NoError(err)
+
+	migrator = NewMigrator(zap.NewNop(), s.repository, &conf.MigrationConfig{
+		Locations:     []string{migrationsDir},
+		Validate:      true,
+		Down:          true,
+		InTransaction: true,
+		Destination:   testUtils.ToPtr(uint16(3)),
+	})
+
+	err = migrator.Migrate()
+	s.Assert().NoError(err)
+}
+
+func (s *MigrationTestSuite) TestMigrateFailWithFailingMigrations() {
+	migrationsDir := s.T().TempDir()
+
+	invalidSql := "INVALID SQL"
+
+	s.insertMigration(migrationsDir, 1, "test1", &invalidSql, false)
+
+	migrator := NewMigrator(zap.NewNop(), s.repository, &conf.MigrationConfig{
+		Locations:     []string{migrationsDir},
+		Validate:      true,
+		Down:          false,
+		InTransaction: false,
+		Force:         true,
+	})
+
+	err := migrator.Migrate()
+	s.Assert().Error(err)
+
+	s.checkTableRecordsCount("schema_history", 1)
+
+	err = migrator.Migrate()
+	s.Assert().Error(err)
+}
+
+func (s *MigrationTestSuite) TestMigrateFailWithLocalMigrationsGap() {
+	migrationsDir := s.T().TempDir()
+
+	upContent1 := "CREATE TABLE test1 (id SERIAL PRIMARY KEY);"
+	upContent3 := "CREATE TABLE test3 (id SERIAL PRIMARY KEY);"
+
+	s.insertMigration(migrationsDir, 1, "test1", &upContent1, false)
+	s.insertMigration(migrationsDir, 3, "test3", &upContent3, false)
+
+	migrator := NewMigrator(zap.NewNop(), s.repository, &conf.MigrationConfig{
+		Locations:     []string{migrationsDir},
+		Validate:      true,
+		Down:          false,
+		InTransaction: true,
+	})
+
+	err := migrator.Migrate()
+	s.Assert().Error(err)
+}
+
+func (s *MigrationTestSuite) TestMigrateWithInvalidChecksums() {
+	migrationsDir := s.T().TempDir()
+
+	upContent1 := "CREATE TABLE test1 (id SERIAL PRIMARY KEY);"
+	upContent2 := "CREATE TABLE test2 (id SERIAL PRIMARY KEY);"
+
+	s.insertMigration(migrationsDir, 1, "test1", &upContent1, false)
+	s.insertMigration(migrationsDir, 2, "test2", &upContent2, false)
+
+	migrator := NewMigrator(zap.NewNop(), s.repository, &conf.MigrationConfig{
+		Locations:     []string{migrationsDir},
+		Validate:      true,
+		Down:          false,
+		InTransaction: true,
+	})
+
+	err := migrator.Migrate()
+	s.Assert().NoError(err)
+
+	upContent2 = "CREATE TABLE test3 (id SERIAL PRIMARY KEY);"
+	s.insertMigration(migrationsDir, 2, "test2", &upContent2, false)
+
+	err = migrator.Migrate()
 	s.Assert().Error(err)
 }

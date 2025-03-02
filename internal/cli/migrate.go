@@ -116,7 +116,6 @@ func runMigrateCommand(cmd *cobra.Command, args []string) error {
 	migrator := migrator.NewMigrator(logger, repo, &projectConfig.Migration)
 	err = migrator.Migrate()
 	if err != nil {
-		logError(logger, ErrLoadMigrations, err)
 		return genError(ErrLoadMigrations, err)
 	}
 
