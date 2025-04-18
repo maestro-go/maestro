@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-<img src="./.github/assets/imgs/logo.png" alt="Maestro Logo" width="300">
+<img src="./.github/assets/imgs/logo.svg" alt="Maestro Logo" width="500">
 </p>
 
 # Maestro
