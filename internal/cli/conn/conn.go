@@ -32,9 +32,9 @@ func ConnectToDatabase(ctx context.Context, config *conf.ProjectConfig, driver e
 		db.SetConnMaxLifetime(5 * time.Minute)
 
 		if driver == enums.DRIVER_POSTGRES {
-			repo = postgres.NewPostgresRepository(ctx, db)
+			repo = postgres.NewPostgresRepository(ctx, db, &config.HistoryTable)
 		} else {
-			repo = cockroachdb.NewCockroachRepository(ctx, db)
+			repo = cockroachdb.NewCockroachRepository(ctx, db, &config.HistoryTable)
 		}
 
 	default:

@@ -22,13 +22,14 @@ type MigrationConfig struct {
 }
 
 type ProjectConfig struct {
-	Driver   string `yaml:"driver" default:"postgres"`
-	Host     string `yaml:"host" default:"localhost"`
-	Port     uint16 `yaml:"port" default:"5432"`
-	Database string `yaml:"database" default:"postgres"`
-	User     string `yaml:"user" default:"postgres"`
-	Password string `yaml:"password" default:"postgres"`
-	Schema   string `yaml:"schema" default:"public"`
+	Driver       string `yaml:"driver" default:"postgres"`
+	Host         string `yaml:"host" default:"localhost"`
+	Port         uint16 `yaml:"port" default:"5432"`
+	Database     string `yaml:"database" default:"postgres"`
+	User         string `yaml:"user" default:"postgres"`
+	Password     string `yaml:"password" default:"postgres"`
+	Schema       string `yaml:"schema" default:"public"`
+	HistoryTable string `yaml:"history-table" default:"schema_history"`
 
 	SSL sslConfig `yaml:"ssl"`
 

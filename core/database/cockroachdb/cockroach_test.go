@@ -34,7 +34,7 @@ func (s *MigrationTestSuite) SetupSuite() {
 
 	s.suiteDb = db
 
-	s.repository = NewCockroachRepository(s.ctx, db)
+	s.repository = NewCockroachRepository(s.ctx, db, testUtils.ToPtr(default_history_table))
 }
 
 func (s *MigrationTestSuite) TearDownTest() {
@@ -82,16 +82,16 @@ func (s *MigrationTestSuite) TestAssertSchemaHistoryTable() {
 	err := s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
 
-	s.checkTableExists(schema_history_table, true)
+	s.checkTableExists(default_history_table, true)
 }
 
 func (s *MigrationTestSuite) TestCheckSchemaHistoryTable() {
-	s.checkTableExists(schema_history_table, false)
+	s.checkTableExists(default_history_table, false)
 
 	err := s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
 
-	s.checkTableExists(schema_history_table, true)
+	s.checkTableExists(default_history_table, true)
 }
 
 func (s *MigrationTestSuite) TestGetLatestMigration() {
@@ -111,7 +111,7 @@ func (s *MigrationTestSuite) TestGetLatestMigration() {
 			(1, 't', '0a52730597fb4ffa01fc117d9e71e3a9', true),
 			(5, 't', '0a52730597fb4ffa01fc117d9e71e3a9', true),
 			(7, 't', '0a52730597fb4ffa01fc117d9e71e3a9', false);
-	`, schema_history_table)
+	`, default_history_table)
 
 	_, err = s.suiteDb.Exec(query)
 	s.Assert().NoError(err)
@@ -153,7 +153,7 @@ func (s *MigrationTestSuite) TestValidateMigrations() {
 	query := fmt.Sprintf(`
 		INSERT INTO %s (version, description, md5_checksum, success) VALUES
 			($1, $2, $3, true);
-	`, schema_history_table)
+	`, default_history_table)
 
 	_, err = s.suiteDb.ExecContext(s.ctx, query, migrations[1].Version,
 		migrations[1].Description, migrations[1].Checksum)
@@ -171,7 +171,7 @@ func (s *MigrationTestSuite) TestValidateMigrations() {
 
 	query = fmt.Sprintf(`
 		UPDATE %s SET md5_checksum = $1 WHERE version = $2;
-	`, schema_history_table)
+	`, default_history_table)
 
 	_, err = s.suiteDb.ExecContext(s.ctx, query, checksums[0], migrations[1].Version)
 	s.Assert().NoError(err)
@@ -209,10 +209,10 @@ func (s *MigrationTestSuite) TestExecuteMigration() {
 	errs = s.repository.ExecuteMigration(migration)
 	s.Assert().Nil(errs)
 
-	s.checkTableExists(schema_history_table, true)
+	s.checkTableExists(default_history_table, true)
 	s.checkTableExists("test2", true)
 
-	query := fmt.Sprintf(`SELECT version, description, md5_checksum FROM %s;`, schema_history_table)
+	query := fmt.Sprintf(`SELECT version, description, md5_checksum FROM %s;`, default_history_table)
 	version := uint16(0)
 	description := ""
 	md5Checksum := ""
@@ -267,14 +267,14 @@ func (s *MigrationTestSuite) TestRollbackMigration() {
 	_, err = s.suiteDb.ExecContext(s.ctx, fmt.Sprintf(`
 		INSERT INTO %s (version, description, md5_checksum, success)
 		VALUES (1, 'abcd', '0a52730597fb4ffa01fc117d9e71e3a9', true);
-	`, schema_history_table))
+	`, default_history_table))
 	s.Assert().NoError(err)
 
 	query2 := fmt.Sprintf(`
 		SELECT EXISTS (
 			SELECT version FROM %s WHERE version = $1
 		);
-	`, schema_history_table)
+	`, default_history_table)
 
 	s.checkTableExists("test4", true)
 
@@ -359,7 +359,7 @@ func (s *MigrationTestSuite) TestRepair() {
 	query := fmt.Sprintf(`
         INSERT INTO %s (version, description, md5_checksum, success) VALUES
             ($1, $2, $3, false);
-    `, schema_history_table)
+    `, default_history_table)
 
 	_, err = s.suiteDb.ExecContext(s.ctx, query, migrations[0].Version, migrations[0].Description, migrations[0].Checksum)
 	s.Assert().NoError(err)
@@ -368,7 +368,7 @@ func (s *MigrationTestSuite) TestRepair() {
 	newChecksum := "d41d8cd98f00b204e9800998ecf8427e"
 	_, err = s.suiteDb.ExecContext(s.ctx, fmt.Sprintf(`
         UPDATE %s SET md5_checksum = $1 WHERE version = $2;
-    `, schema_history_table), newChecksum, migrations[0].Version)
+    `, default_history_table), newChecksum, migrations[0].Version)
 	s.Assert().NoError(err)
 
 	errs := s.repository.Repair(migrations)
@@ -376,7 +376,7 @@ func (s *MigrationTestSuite) TestRepair() {
 
 	query = fmt.Sprintf(`
         SELECT md5_checksum FROM %s WHERE version = $1;
-    `, schema_history_table)
+    `, default_history_table)
 
 	var repairedChecksum string
 	err = s.suiteDb.QueryRowContext(s.ctx, query, migrations[0].Version).Scan(&repairedChecksum)
@@ -389,7 +389,7 @@ func (s *MigrationTestSuite) TestRepair() {
 
 	query = fmt.Sprintf(`
         SELECT md5_checksum FROM %s WHERE version = $1;
-    `, schema_history_table)
+    `, default_history_table)
 
 	err = s.suiteDb.QueryRowContext(s.ctx, query, migrations[1].Version).Scan(&repairedChecksum)
 	s.Assert().NoError(err)
@@ -405,7 +405,7 @@ func (s *MigrationTestSuite) TestGetFailingMigrations() {
 			(1, 't', '0a52730597fb4ffa01fc117d9e71e3a9', false),
 			(2, 't', '0a52730597fb4ffa01fc117d9e71e3a9', true),
 			(3, 't', '0a52730597fb4ffa01fc117d9e71e3a9', false);
-	`, schema_history_table)
+	`, default_history_table)
 
 	_, err = s.suiteDb.Exec(query)
 	s.Assert().NoError(err)
