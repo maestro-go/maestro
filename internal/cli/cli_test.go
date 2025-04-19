@@ -40,7 +40,7 @@ func (s *CliTestSuite) SetupSuite() {
 
 	s.suiteDb = db
 
-	s.repository = postgres.NewPostgresRepository(s.ctx, db)
+	s.repository = postgres.NewPostgresRepository(s.ctx, db, testUtils.ToPtr("schema_history"))
 }
 
 func (s *CliTestSuite) TearDownSuite() {
@@ -152,12 +152,16 @@ func (s *CliTestSuite) TestEntirePipeline() {
 		rootCmd := SetupRootCommand()
 		s.insertMigration(enums.MIGRATION_UP, migrationsDir, 1, "test", "CREATE TABLE test1 (id SERIAL PRIMARY KEY);")
 
+		historyTable := "test_history"
+
 		rootCmd.SetArgs([]string{"migrate", "-l", projectDir, "-m", migrationsDir, "--user", s.postgres.Username,
-			"--password", s.postgres.Password, "--port", s.postgres.Port, "--database", s.postgres.Database})
+			"--password", s.postgres.Password, "--port", s.postgres.Port, "--database", s.postgres.Database,
+			"--history-table", historyTable})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
 
 		s.checkTableExists("test1", true)
+		s.checkTableExists(historyTable, true)
 
 		s.clearDir(migrationsDir) // Clear migrations for init
 		s.resetDatabase()
