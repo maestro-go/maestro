@@ -14,6 +14,7 @@ func SetupDBConfigFlags(cmd *cobra.Command) {
 	cmd.Flags().String("user", "postgres", "Database user.")
 	cmd.Flags().String("password", "postgres", "Database password.")
 	cmd.Flags().String("schema", "public", "Database schema.")
+	cmd.Flags().String("history-table", "schema_history", "Schema history table name")
 
 	// SSLConfig flags
 	cmd.Flags().String("sslmode", "disable", "SSL mode for the database connection.")
@@ -55,6 +56,11 @@ func ExtractDBConfigFlags(cmd *cobra.Command, config *conf.ProjectConfig) error 
 	}
 
 	config.Schema, err = cmd.Flags().GetString("schema")
+	if err != nil {
+		return err
+	}
+
+	config.HistoryTable, err = cmd.Flags().GetString("history-table")
 	if err != nil {
 		return err
 	}

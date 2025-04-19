@@ -38,7 +38,7 @@ func (s *MigrationTestSuite) SetupSuite() {
 
 	s.suiteDb = db
 
-	s.repository = postgres.NewPostgresRepository(s.ctx, db)
+	s.repository = postgres.NewPostgresRepository(s.ctx, db, testUtils.ToPtr("schema_history"))
 }
 
 func (s *MigrationTestSuite) TearDownTest() {

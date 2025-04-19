@@ -102,7 +102,9 @@ func main() {
         log.Fatal(err)
     }
 
-    repo := postgres.NewPostgresRepository(ctx, db)
+    // Initializes a new Postgres repository instance.
+    // You can pass a value for the third parameter (history table name), but in this case, it will use the default (schema_history).
+    repo := postgres.NewPostgresRepository(ctx, db, nil)
     migrator := migrator.NewMigrator(logger, repo, config)
 
     err = migrator.Migrate()

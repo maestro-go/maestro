@@ -10,22 +10,31 @@ import (
 	"github.com/maestro-go/maestro/internal/migrations"
 )
 
-const schema_history_table = "schema_history"
+const default_history_table = "schema_history"
 const lock_num = 5691374
 
 type PostgresRepository struct {
 	database.Repository
-	ctx       context.Context
-	queriable database.Queriable
-	db        database.Database
+	ctx           context.Context
+	queriable     database.Queriable
+	db            database.Database
+	history_table string
 }
 
-func NewPostgresRepository(ctx context.Context, db database.Database) *PostgresRepository {
-	return &PostgresRepository{
+func NewPostgresRepository(ctx context.Context, db database.Database, history_table *string) *PostgresRepository {
+	repo := &PostgresRepository{
 		ctx:       ctx,
 		queriable: db,
 		db:        db,
 	}
+
+	if history_table != nil {
+		repo.history_table = *history_table
+	} else {
+		repo.history_table = default_history_table
+	}
+
+	return repo
 }
 
 func (r *PostgresRepository) GetLatestMigration() (uint16, error) {
@@ -42,7 +51,7 @@ func (r *PostgresRepository) GetLatestMigration() (uint16, error) {
 		SELECT COALESCE(MAX(version), 0)
 		FROM %s
 		WHERE success = true;
-	`, schema_history_table)
+	`, r.history_table)
 
 	version := uint16(0)
 	err = r.queriable.QueryRowContext(r.ctx, query).Scan(&version)
@@ -71,7 +80,7 @@ func (r *PostgresRepository) AssertSchemaHistoryTable() error {
 			executed_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			repaired_at TIMESTAMP
 		);
-	`, schema_history_table)
+	`, r.history_table)
 
 	_, err = r.queriable.ExecContext(r.ctx, query)
 	if err != nil {
@@ -90,7 +99,7 @@ func (r *PostgresRepository) CheckSchemaHistoryTable() (bool, error) {
 	`
 
 	exists := false
-	err := r.queriable.QueryRowContext(r.ctx, query, schema_history_table).Scan(&exists)
+	err := r.queriable.QueryRowContext(r.ctx, query, r.history_table).Scan(&exists)
 	if err != nil {
 		return false, err
 	}
@@ -128,7 +137,7 @@ func (r *PostgresRepository) ValidateMigrations(migrations []*migrations.Migrati
 	// Check gaps
 	query := fmt.Sprintf(`
 		SELECT version FROM %s ORDER BY version ASC;
-	`, schema_history_table)
+	`, r.history_table)
 
 	versionsRows, err := r.queriable.QueryContext(r.ctx, query)
 	if err != nil {
@@ -158,7 +167,7 @@ func (r *PostgresRepository) ValidateMigrations(migrations []*migrations.Migrati
 		SELECT version, description, md5_checksum
 		FROM %s
 		WHERE success = true AND (version, description, md5_checksum) NOT IN (%s);
-	`, schema_history_table, strings.Join(tuples, ", "))
+	`, r.history_table, strings.Join(tuples, ", "))
 
 	rows, err := r.queriable.QueryContext(r.ctx, query, params...)
 	if err != nil {
@@ -206,7 +215,7 @@ func (r *PostgresRepository) ExecuteMigration(migration *migrations.Migration) [
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (version)
 		DO UPDATE SET description = $2, md5_checksum = $3, success = $4, executed_at = NOW();
-	`, schema_history_table)
+	`, r.history_table)
 
 	_, err = r.queriable.ExecContext(r.ctx, query, migration.Version, migration.Description,
 		migration.Checksum, err == nil)
@@ -240,7 +249,7 @@ func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) 
 		SELECT EXISTS (
 			SELECT version FROM %s WHERE version = $1
 		);
-	`, schema_history_table)
+	`, r.history_table)
 
 	exists := false
 	err := r.queriable.QueryRowContext(r.ctx, query, migration.Version).Scan(&exists)
@@ -260,7 +269,7 @@ func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) 
 	query = fmt.Sprintf(`
 		DELETE FROM %s
 		WHERE version = $1;
-	`, schema_history_table)
+	`, r.history_table)
 
 	res, err := r.queriable.ExecContext(r.ctx, query, migration.Version)
 	if err != nil {
@@ -273,7 +282,7 @@ func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) 
 	}
 
 	if rowsAffected < 1 {
-		return fmt.Errorf("version was not deleted from \"%s\" table", schema_history_table)
+		return fmt.Errorf("version was not deleted from \"%s\" table", r.history_table)
 	}
 
 	return nil
@@ -344,7 +353,7 @@ func (r *PostgresRepository) Repair(migrations []*migrations.Migration) []error 
 					THEN NOW()
 					ELSE %s.repaired_at
 				END;
-		`, schema_history_table, schema_history_table, schema_history_table, schema_history_table)
+		`, r.history_table, r.history_table, r.history_table, r.history_table)
 
 		_, err := r.queriable.ExecContext(r.ctx, query, migration.Version, migration.Description, *migration.Checksum)
 		if err != nil {
@@ -372,7 +381,7 @@ func (r *PostgresRepository) GetFailingMigrations() ([]*migrations.Migration, er
         SELECT version, description, md5_checksum
         FROM %s
         WHERE success = false;
-    `, schema_history_table)
+    `, r.history_table)
 
 	rows, err := r.queriable.QueryContext(r.ctx, query)
 	if err != nil {
