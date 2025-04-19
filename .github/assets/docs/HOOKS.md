@@ -24,12 +24,12 @@ Maestro supports the following types of hooks:
 Hooks are executed in the following order based on their type and the `{number}` in their file name:
 
 1. **Before Hooks**
-2. **Before Each Hooks**
-3. **Before Version Hooks**
-4. **Migration Scripts**
-5. **After Version Hooks**
-6. **After Each Hooks**
-7. **Repeatable Hooks** (except after last migration)
+2. **Repeatable Hooks** (except before first migration)
+3. **Before Each Hooks**
+4. **Before Version Hooks**
+5. **Migration Scripts**
+6. **After Version Hooks**
+7. **After Each Hooks**
 8. **After Hooks**
 
 ## Hook File Naming

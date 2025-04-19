@@ -194,6 +194,17 @@ func (m *Migrator) migrateUp(migrations []*migrations.Migration, hooks map[enums
 			continue
 		}
 
+		// Do not execute repeatable before first migration
+		if m.config.UseRepeatable && migration.Version > 1 {
+			hErrs := m.executeHooks(hooks[enums.HOOK_REPEATABLE])
+			if len(hErrs) > 0 {
+				errs = append(errs, hErrs...)
+				if !m.config.Force {
+					return errs
+				}
+			}
+		}
+
 		if m.config.UseBeforeEach {
 			hErrs := m.executeHooks(hooks[enums.HOOK_BEFORE_EACH])
 			if hErrs != nil {
@@ -239,17 +250,6 @@ func (m *Migrator) migrateUp(migrations []*migrations.Migration, hooks map[enums
 		if m.config.UseAfterEach {
 			hErrs := m.executeHooks(hooks[enums.HOOK_AFTER_EACH])
 			if hErrs != nil {
-				errs = append(errs, hErrs...)
-				if !m.config.Force {
-					return errs
-				}
-			}
-		}
-
-		// Do not execute repeatable after last migration
-		if m.config.UseRepeatable && migration.Version < to {
-			hErrs := m.executeHooks(hooks[enums.HOOK_REPEATABLE])
-			if len(hErrs) > 0 {
 				errs = append(errs, hErrs...)
 				if !m.config.Force {
 					return errs
