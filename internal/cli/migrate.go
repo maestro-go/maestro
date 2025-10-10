@@ -15,6 +15,7 @@ import (
 	internalConf "github.com/maestro-go/maestro/internal/conf"
 	"github.com/maestro-go/maestro/internal/filesystem"
 	"github.com/maestro-go/maestro/internal/utils/logger"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
 
