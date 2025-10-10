@@ -33,6 +33,7 @@ jobs:
         report: true
         chart: true
         amend: true
+        output-dir: ".github/assets/coverage"
       if: |
         github.event_name == 'push' || github.event.pull_request.merged == true  
       continue-on-error: true
