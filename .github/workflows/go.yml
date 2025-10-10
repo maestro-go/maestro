@@ -5,9 +5,9 @@ name: Go
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: [ "main" ]
 
 jobs:
 
@@ -34,6 +34,5 @@ jobs:
         chart: true
         amend: true
       if: |
-        matrix.os == 'ubuntu-latest' &&
-        github.event_name == 'push'  
+        github.event_name == 'push' || github.event.pull_request.merged == true  
       continue-on-error: true
