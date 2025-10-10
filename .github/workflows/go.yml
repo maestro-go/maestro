@@ -5,9 +5,9 @@ name: Go
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
 
 jobs:
 
@@ -26,14 +26,3 @@ jobs:
 
     - name: Test
       run: go test -v ./...
-
-    - name: Update coverage report
-      uses: ncruces/go-coverage-report@v0
-      with:
-        report: true
-        chart: true
-        amend: true
-        output-dir: ".github/assets/coverage"
-      if: |
-        github.event_name == 'push' || github.event.pull_request.merged == true  
-      continue-on-error: true
