@@ -31,7 +31,6 @@ func NewMigrator(logger *zap.Logger, repository database.Repository, config *con
 // Migrate performs database migrations based on the configuration and current state of the database.
 func (m *Migrator) Migrate() error {
 	return m.repository.DoInLock(func() error {
-
 		// Load migrations and hooks to memory
 		migrationsMap, hooksMap, errs := filesystem.LoadObjectsFromFiles(m.config)
 		if len(errs) > 0 {

@@ -10,6 +10,7 @@ import (
 	"github.com/maestro-go/maestro/core/database"
 	"github.com/maestro-go/maestro/core/database/cockroachdb"
 	"github.com/maestro-go/maestro/core/database/postgres"
+	"github.com/maestro-go/maestro/core/database/sqlite3"
 	"github.com/maestro-go/maestro/core/enums"
 )
 
@@ -36,6 +37,17 @@ func ConnectToDatabase(ctx context.Context, config *conf.ProjectConfig, driver e
 		} else {
 			repo = cockroachdb.NewCockroachRepository(ctx, db, &config.HistoryTable)
 		}
+
+	case enums.DRIVER_SQLITE3:
+		var err error
+		if driver == enums.DRIVER_SQLITE3 {
+			db, err = sql.Open("sqlite3", config.Database)
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+
+		repo = sqlite3.NewSQLiteRepository(ctx, db, &config.HistoryTable)
 
 	default:
 		return nil, nil, fmt.Errorf("unsupported driver type: %d", driver)

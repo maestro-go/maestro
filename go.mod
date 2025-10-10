@@ -3,6 +3,7 @@ module github.com/maestro-go/maestro
 go 1.22
 
 require (
+	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/spf13/cobra v1.8.1
 	github.com/testcontainers/testcontainers-go/modules/cockroachdb v0.35.0
 	gopkg.in/yaml.v3 v3.0.1
