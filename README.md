@@ -4,8 +4,8 @@
   <a href="https://goreportcard.com/report/github.com/maestro-go/maestro">
     <img src="https://goreportcard.com/badge/github.com/maestro-go/maestro" alt="Go Report Card">
   </a>
-  <a href="https://coveralls.io/github/maestro-go/maestro?branch=main">
-    <img src="https://coveralls.io/repos/github/maestro-go/maestro/badge.svg?branch=main" alt="Coverage Status">
+  <a href="https://raw.githack.com/wiki/maestro-go/maestro/coverage.html">
+    <img src="https://github.com/maestro-go/maestro/wiki/coverage.svg" alt="Coverage Status">
   </a>
   <a href="./LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-yellow.svg" alt="License">
