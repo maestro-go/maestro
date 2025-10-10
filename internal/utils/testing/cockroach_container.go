@@ -12,7 +12,7 @@ import (
 
 type CockroachContainer struct {
 	testcontainers.Container
-	URI string // Connection URI
+	URI string
 }
 
 func SetupCockroach(t *testing.T) *CockroachContainer {

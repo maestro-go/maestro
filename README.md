@@ -4,8 +4,8 @@
   <a href="https://goreportcard.com/report/github.com/maestro-go/maestro">
     <img src="https://goreportcard.com/badge/github.com/maestro-go/maestro" alt="Go Report Card">
   </a>
-  <a href="https://coveralls.io/github/maestro-go/maestro?branch=main">
-    <img src="https://coveralls.io/repos/github/maestro-go/maestro/badge.svg?branch=main" alt="Coverage Status">
+  <a href="https://raw.githack.com/wiki/maestro-go/maestro/coverage.html">
+    <img src="https://github.com/maestro-go/maestro/wiki/coverage.svg" alt="Coverage Status">
   </a>
   <a href="./LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-yellow.svg" alt="License">
@@ -55,11 +55,13 @@ maestro migrate
 ## Installation
 
 ### CLI Tool
+
 ```bash
 go install github.com/maestro-go/maestro@latest
 ```
 
 ### Go Library
+
 ```bash
 go get github.com/maestro-go/maestro/core
 ```
@@ -67,12 +69,14 @@ go get github.com/maestro-go/maestro/core
 ## Supported Databases
 
 ### Currently Supported
-- ✅ [PostgreSQL](https://www.postgresql.org)  
+
+- ✅ [PostgreSQL](https://www.postgresql.org)
 - ✅ [CockroachDB](https://www.cockroachlabs.com)
+- ✅ [SQLite3](/core/database/sqlite/SQLITE3.md)
 
 ### In Progress
-- 🚧 MySQL  
-- 🚧 SQLite  
+
+- 🚧 MySQL
 - 🚧 ClickHouse
 
 ## Key Features
@@ -118,6 +122,7 @@ If you're using hooks, the recommended folder structure is:
 ```
 
 Create new migrations using the CLI:
+
 ```bash
 maestro create add_users_table -m ./migrations --with-down
 ```
@@ -158,6 +163,7 @@ maestro status
 ```
 
 ### Templates
+
 Maestro supports the use of templates to simplify and standardize your migration files. Templates allow you to define reusable content that can be dynamically replaced with specific values during migration execution.
 
 To use templates, create a template file in your migrations directory with the `.template.sql` extension. For example:
@@ -172,6 +178,7 @@ To use templates, create a template file in your migrations directory with the `
 In your migration files, you can reference the template using the `{{template_name, value1, value2}}` syntax. Maestro will replace the template placeholders with the provided values.
 
 Example template file (`table_template.template.sql`):
+
 ```sql
 CREATE TABLE $1 (
   id SERIAL PRIMARY KEY,
@@ -182,11 +189,13 @@ CREATE TABLE $1 (
 ```
 
 Example migration file using the template:
+
 ```
 {{table_template, users, name, email}}
 ```
 
 Maestro will replace `{{table_template, users, name, email}}` with the content of `table_template.template.sql`, resulting in:
+
 ```sql
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
@@ -205,6 +214,7 @@ You can force migrations using the `force` flag/config. However, it is not compa
 ## Documentation
 
 Detailed documentation is available:
+
 - [CLI Tool Documentation](./.github/assets/docs/CLI.md)
 - [Go Library Documentation](./.github/assets/docs/LIBRARY.md)
 - [Hooks Documentation](./.github/assets/docs/HOOKS.md)
@@ -212,6 +222,7 @@ Detailed documentation is available:
 ## Contributing
 
 We welcome contributions! Please read our:
+
 - [Code of Conduct](./CODE_OF_CONDUCT.md)
 - [Contributing Guide](./CONTRIBUTING.md)
 
