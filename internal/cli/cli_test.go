@@ -1,4 +1,4 @@
-package cli
+package cli_test
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"github.com/maestro-go/maestro/core/database"
 	"github.com/maestro-go/maestro/core/database/postgres"
 	"github.com/maestro-go/maestro/core/enums"
+	"github.com/maestro-go/maestro/internal/cli"
 	testUtils "github.com/maestro-go/maestro/internal/utils/testing"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
@@ -139,7 +140,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	defer s.clearDir(projectDir)
 
 	s.Run("test root command", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		err := rootCmd.Execute()
 		s.Assert().NoError(err)
 
@@ -149,14 +150,16 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("test command flags", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		s.insertMigration(enums.MIGRATION_UP, migrationsDir, 1, "test", "CREATE TABLE test1 (id SERIAL PRIMARY KEY);")
 
 		historyTable := "test_history"
 
-		rootCmd.SetArgs([]string{"migrate", "-l", projectDir, "-m", migrationsDir, "--user", s.postgres.Username,
+		rootCmd.SetArgs([]string{
+			"migrate", "-l", projectDir, "-m", migrationsDir, "--user", s.postgres.Username,
 			"--password", s.postgres.Password, "--port", s.postgres.Port, "--database", s.postgres.Database,
-			"--history-table", historyTable})
+			"--history-table", historyTable,
+		})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
 
@@ -168,7 +171,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("test init command", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"init", "-l", projectDir, "-m", migrationsDir})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
@@ -178,7 +181,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("test create command", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"create", "test2", "-l", projectDir})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
@@ -187,7 +190,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("check error with invalid config file", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"status", "-l", projectDir, "-m", migrationsDir})
 		err := rootCmd.Execute()
 		s.Assert().Error(err) // This should fail because it is pointing to 5432 postgres default
@@ -210,7 +213,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	s.Require().NoError(err)
 
 	s.Run("test status command with no history table", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"status", "-l", projectDir, "-m", migrationsDir})
 		err := rootCmd.Execute()
 		s.Assert().NoError(err)
@@ -219,7 +222,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("test repair command with no history table", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"repair", "-l", projectDir, "-m", migrationsDir})
 		err := rootCmd.Execute()
 		s.Assert().NoError(err)
@@ -231,7 +234,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 		s.checkFileExists(migrationsDir, "V001_example.sql", true)
 		s.insertMigration(enums.MIGRATION_UP, migrationsDir, 1, "example", "INVALID SQL")
 
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"migrate", "-l", projectDir})
 		err := rootCmd.Execute()
 		s.Assert().Error(err)
@@ -243,7 +246,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 		s.checkFileExists(migrationsDir, "V002_test2.sql", true)
 		s.insertMigration(enums.MIGRATION_UP, migrationsDir, 2, "test2", "CREATE TABLE test2 (id SERIAL PRIMARY KEY, name varchar(255));")
 
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"migrate", "-l", projectDir, "--force=true", "--in-transaction=false"})
 		err := rootCmd.Execute()
 		s.Assert().Error(err)
@@ -257,14 +260,14 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("test migrate command failing for having invalid migrations", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"migrate", "-l", projectDir})
 		err := rootCmd.Execute()
 		s.Assert().Error(err)
 	})
 
 	s.Run("test status command with failing migrations", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"status", "-l", projectDir})
 		err := rootCmd.Execute()
 		s.Assert().NoError(err)
@@ -275,7 +278,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	s.insertMigration(enums.MIGRATION_UP, migrationsDir, 1, "example", "CREATE TABLE test1 (id SERIAL PRIMARY KEY, name varchar(255))")
 
 	s.Run("test repair command", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"repair", "-l", projectDir})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
@@ -288,15 +291,14 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	s.Run("test migrate command failing md5 checksum", func() {
 		s.checkFileExists(migrationsDir, "V001_example.sql", true)
 		s.insertMigration(enums.MIGRATION_UP, migrationsDir, 1, "example", "CHANGED SQL")
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"migrate", "-l", projectDir})
 		err := rootCmd.Execute()
 		s.Require().Error(err)
-
 	})
 
 	s.Run("test status command with failing md5 checksum", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"status", "-l", projectDir})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
@@ -311,7 +313,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	s.insertMigration(enums.MIGRATION_DOWN, migrationsDir, 3, "example", "DROP TABLE IF EXISTS test3;")
 
 	s.Run("test migrate command with new migrations", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"migrate", "-l", projectDir})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
@@ -321,7 +323,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("test migrate command down", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"migrate", "-l", projectDir, "--down"})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
@@ -333,7 +335,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("test migrate command with destination", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"migrate", "-l", projectDir, "--destination=2"})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
@@ -345,7 +347,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("test migrate command down with destination", func() {
-		rootCmd := SetupRootCommand()
+		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{"migrate", "-l", projectDir, "--down", "--destination=1"})
 		err := rootCmd.Execute()
 		s.Require().NoError(err)
@@ -357,12 +359,14 @@ func (s *CliTestSuite) TestEntirePipeline() {
 	})
 
 	s.Run("test all flags merge", func() {
-		rootCmd := SetupRootCommand()
-		rootCmd.SetArgs([]string{"migrate", "-l", projectDir, "--validate=true", "--in-transaction=true",
+		rootCmd := cli.SetupRootCommand()
+		rootCmd.SetArgs([]string{
+			"migrate", "-l", projectDir, "--validate=true", "--in-transaction=true",
 			"--force=false", "--use-repeatable=true", "--use-before=true", "--use-after=true", "--use-before-each=true",
 			"--use-after-each=true", "--use-before-version=true", "--use-after-version=true", "--driver=postgres",
 			"--host=localhost", "--port", s.postgres.Port, "--database", s.postgres.Database, "--user", s.postgres.Username,
-			"--password", s.postgres.Password, "--schema=public", "--sslmode=disable", "--sslrootcert=\"\""})
+			"--password", s.postgres.Password, "--schema=public", "--sslmode=disable", "--sslrootcert=\"\"",
+		})
 		err := rootCmd.Execute()
 		s.Assert().NoError(err)
 	})

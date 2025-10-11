@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-<img src="./.github/assets/imgs/logo.svg" alt="Maestro Logo" width="500">
+  <img src="./.github/assets/imgs/logo.svg" alt="Maestro Logo" width="500">
 </p>
 
 # Maestro
@@ -68,9 +68,9 @@ go get github.com/maestro-go/maestro/core
 
 ### Currently Supported
 
-- ✅ [PostgreSQL](https://www.postgresql.org)
-- ✅ [CockroachDB](https://www.cockroachlabs.com)
-- ✅ [SQLite3](/core/database/sqlite/SQLITE3.md)
+- ✅ [PostgreSQL](/core/database/postgres/POSTGRES.md)
+- ✅ [CockroachDB](/core/database/cockroachdb/COCKROACH.md)
+- ✅ [SQLite3](/core/database/sqlite3/SQLITE3.md)
 
 ### In Progress
 
