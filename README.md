@@ -68,8 +68,8 @@ go get github.com/maestro-go/maestro/core
 
 ### Currently Supported
 
-- ✅ [PostgreSQL](https://www.postgresql.org)
-- ✅ [CockroachDB](https://www.cockroachlabs.com)
+- ✅ [PostgreSQL](/core/database/postgres/POSTGRES.md)
+- ✅ [CockroachDB](/core/database/cockroachdb/COCKROACH.md)
 - ✅ [SQLite3](/core/database/sqlite3/SQLITE3.md)
 
 ### In Progress
