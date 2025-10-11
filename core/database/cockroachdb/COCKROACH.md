@@ -1,6 +1,6 @@
 # 🪳 CockroachDB
 
-> [!INFO]
+> [!NOTE]
 > You must pass **`"cockroachdb"`** as the driver name to our library.
 
 > [!WARNING]

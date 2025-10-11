@@ -1,6 +1,6 @@
 # 🐘 PostgreSQL
 
-> [!INFO]
+> [!NOTE]
 > You must pass **`"postgres"`** as the driver name to our library.
 
 ---
