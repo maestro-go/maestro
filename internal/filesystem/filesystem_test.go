@@ -1,14 +1,55 @@
-package filesystem
+package filesystem_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/maestro-go/maestro/core/conf"
 	"github.com/maestro-go/maestro/core/enums"
+	"github.com/maestro-go/maestro/internal/filesystem"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGetLatestVersionFromFiles(t *testing.T) {
+	migrationsDir1 := t.TempDir()
+	migrationsDir2 := t.TempDir()
+
+	err := os.WriteFile(filepath.Join(migrationsDir1, "V001_test1.sql"), []byte(""), os.ModePerm)
+	assert.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(migrationsDir2, "V002_test2.sql"), []byte(""), os.ModePerm)
+	assert.NoError(t, err)
+
+	latest, err := filesystem.GetLatestVersionFromFiles([]string{migrationsDir1, migrationsDir2})
+	assert.NoError(t, err)
+	assert.Equal(t, uint16(2), latest)
+}
+
+func TestCheckFSObject(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "test_file.txt")
+
+	// Check for a non-existent file
+	exists, err := filesystem.CheckFSObject(filePath)
+	assert.NoError(t, err)
+	assert.False(t, exists)
+
+	// Create the file
+	err = os.WriteFile(filePath, []byte("test"), 0644)
+	assert.NoError(t, err)
+
+	// Check for an existent file
+	exists, err = filesystem.CheckFSObject(filePath)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+
+	// Check for a non-existent file in the same folder
+	exists, err = filesystem.CheckFSObject(fmt.Sprintf("%s/test_file2.txt", dir))
+	assert.NoError(t, err)
+	assert.False(t, exists)
+}
 
 func TestLoadObjectsFromFiles(t *testing.T) {
 	// Setup test
@@ -59,7 +100,7 @@ func TestLoadObjectsFromFiles(t *testing.T) {
 	assert.Len(t, entries2, 3)
 
 	// Assert test
-	migrations, hooks, errs := LoadObjectsFromFiles(config)
+	migrations, hooks, errs := filesystem.LoadObjectsFromFiles(config)
 	assert.Len(t, errs, 0)
 	assert.Len(t, migrations[enums.MIGRATION_UP], 2)
 	assert.Len(t, hooks[enums.HOOK_REPEATABLE], 1)
