@@ -1,7 +1,7 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: Go
+name: Go CI
 
 on:
   push:
@@ -9,33 +9,44 @@ on:
   pull_request:
     branches: [ "main", "dev" ]
 
-jobs:
+permissions:
+  contents: write
 
-  build:
+jobs:
+  ci:
+    name: Build, Test and Coverage
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.22'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
 
-    - name: Build
-      run: go build -v ./...
+      - name: Install dependencies
+        run: go mod download
 
-    - name: Test
-      run: go test -v ./...
+      - name: Run Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout 5m
 
-    - name: generate test coverage
-      if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-      run: go test $(go list ./... | grep -v /utils/ | grep -v /enums) -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
-  
-    - name: check test coverage
-      if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-      uses: vladopajic/go-test-coverage@v2
-      continue-on-error: true
-      with:
-        profile: cover.out
-        git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
-        git-branch: badges
+      - name: Build
+        run: go build -v ./...
+
+      - name: Run tests with coverage
+        run: |
+          go test -v -coverprofile=cover.out -covermode=atomic -coverpkg=./... ./...
+
+      - name: Check and update coverage badges
+        if: always()
+        uses: vladopajic/go-test-coverage@v2
+        continue-on-error: true
+        with:
+          profile: cover.out
+          git-token: ${{ (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')) && secrets.GITHUB_TOKEN || '' }}
+          git-branch: badges

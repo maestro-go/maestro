@@ -9,6 +9,7 @@ import (
 	"github.com/maestro-go/maestro/core/conf"
 	"github.com/maestro-go/maestro/core/database"
 	"github.com/maestro-go/maestro/core/database/cockroachdb"
+	"github.com/maestro-go/maestro/core/database/mysql"
 	"github.com/maestro-go/maestro/core/database/postgres"
 	"github.com/maestro-go/maestro/core/database/sqlite3"
 	"github.com/maestro-go/maestro/core/enums"
@@ -37,6 +38,19 @@ func ConnectToDatabase(ctx context.Context, config *conf.ProjectConfig, driver e
 		} else {
 			repo = cockroachdb.NewCockroachRepository(ctx, db, &config.HistoryTable)
 		}
+
+	case enums.DRIVER_MYSQL:
+		var err error
+		db, err = connectToMySQL(config)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(25)
+		db.SetConnMaxLifetime(5 * time.Minute)
+
+		repo = mysql.NewMySQLRepository(ctx, db, &config.HistoryTable)
 
 	case enums.DRIVER_SQLITE3:
 		var err error
@@ -72,6 +86,32 @@ func connectToPostgres(config *conf.ProjectConfig) (*sql.DB, error) {
 
 	// Establish database connection
 	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, fmt.Errorf("database connection failed: %w", err)
+	}
+
+	// Verify connection
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("database ping failed: %w", err)
+	}
+
+	return db, nil
+}
+
+func connectToMySQL(config *conf.ProjectConfig) (*sql.DB, error) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
+		config.User,
+		config.Password,
+		config.Host,
+		config.Port,
+		config.Database,
+	)
+
+	// Establish database connection
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
