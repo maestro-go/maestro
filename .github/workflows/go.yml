@@ -39,6 +39,9 @@ jobs:
     needs: test
     if: github.event_name == 'pull_request'
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -53,6 +56,7 @@ jobs:
         run: |
           COVERAGE=$(go tool cover -func=cover.out | grep total | awk '{print $3}' | sed 's/%//')
           echo "Total coverage: $COVERAGE%"
+          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
           
           if awk "BEGIN {exit !($COVERAGE < 70)}"; then
             echo "::error::Coverage ($COVERAGE%) is below the required 70% threshold"
@@ -84,6 +88,9 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref_name == 'main'
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Download coverage artifact
         uses: actions/download-artifact@v4
         with:
