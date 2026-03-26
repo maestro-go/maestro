@@ -93,8 +93,8 @@ func (r *PostgresRepository) AssertSchemaHistoryTable() error {
 func (r *PostgresRepository) CheckSchemaHistoryTable() (bool, error) {
 	query := `
 		SELECT EXISTS (
-			SELECT 1 FROM pg_tables
-			WHERE tablename = $1 AND schemaname = current_schema()
+			SELECT 1 FROM information_schema.tables
+			WHERE table_name = $1
 		);
 	`
 

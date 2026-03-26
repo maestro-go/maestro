@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    name: Test before Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -race ./...
+
+  build:
+    name: Build Binaries
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux_amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux_arm64
+          - goos: darwin
+            goarch: amd64
+            suffix: darwin_amd64
+          - goos: darwin
+            goarch: arm64
+            suffix: darwin_arm64
+          - goos: windows
+            goarch: amd64
+            suffix: windows_amd64
+            ext: .exe
+          - goos: windows
+            goarch: arm64
+            suffix: windows_arm64
+            ext: .exe
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build binary and archive
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          BINARY_NAME="maestro_${{ matrix.suffix }}${{ matrix.ext }}"
+          
+          # Build binary with version
+          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o "$BINARY_NAME" .
+          
+          # Create archive containing the binary
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            zip "maestro_${{ matrix.suffix }}.zip" "$BINARY_NAME"
+          else
+            tar -czf "maestro_${{ matrix.suffix }}.tar.gz" "$BINARY_NAME"
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro_${{ matrix.suffix }}
+          path: |
+            maestro_${{ matrix.suffix }}${{ matrix.ext }}
+            maestro_${{ matrix.suffix }}.*
+
+  release:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: maestro_*
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release_assets
+          # Copy both raw binaries and archives from artifact directories
+          find artifacts -type f \( -name "maestro_*" \) -exec cp {} release_assets/ \;
+          ls -la release_assets/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_assets/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

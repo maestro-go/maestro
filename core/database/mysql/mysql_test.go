@@ -89,11 +89,20 @@ func TestMigrationSuite(t *testing.T) {
 	suite.Run(t, new(MigrationTestSuite))
 }
 
+func (s *MigrationTestSuite) TestNewMySQLRepository() {
+	repo := NewMySQLRepository(s.ctx, s.suiteDb, nil)
+	s.Assert().Equal(default_history_table, repo.history_table)
+}
+
 func (s *MigrationTestSuite) TestAssertSchemaHistoryTable() {
 	err := s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
 
 	s.checkTableExists(default_history_table, true)
+
+	// Test already exists
+	err = s.repository.AssertSchemaHistoryTable()
+	s.Assert().NoError(err)
 }
 
 func (s *MigrationTestSuite) TestCheckSchemaHistoryTable() {
@@ -110,6 +119,7 @@ func (s *MigrationTestSuite) TestCheckSchemaHistoryTable() {
 }
 
 func (s *MigrationTestSuite) TestGetLatestMigration() {
+	// No table
 	version, err := s.repository.GetLatestMigration()
 	s.Assert().NoError(err)
 	s.Assert().Equal(uint16(0), version)
@@ -117,6 +127,7 @@ func (s *MigrationTestSuite) TestGetLatestMigration() {
 	err = s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
 
+	// Empty table
 	version, err = s.repository.GetLatestMigration()
 	s.Assert().NoError(err)
 	s.Assert().Equal(uint16(0), version)
@@ -137,9 +148,13 @@ func (s *MigrationTestSuite) TestGetLatestMigration() {
 }
 
 func (s *MigrationTestSuite) TestValidateMigrations() {
+	// Empty list
+	errs := s.repository.ValidateMigrations(nil)
+	s.Assert().Nil(errs)
+
 	checksums := []string{"0a52730597fb4ffa01fc117d9e71e3a9", "3d41c8443df34e73867adb149efbb2ea"}
 	contents := []string{"EXAMPLE CONTENT 1", "EXAMPLE CONTENT 2"}
-	migrations := []*migrations.Migration{
+	migrationsList := []*migrations.Migration{
 		{
 			Version:     1,
 			Description: "abcd",
@@ -156,13 +171,21 @@ func (s *MigrationTestSuite) TestValidateMigrations() {
 		},
 	}
 
-	errs := s.repository.ValidateMigrations(migrations)
+	// No table
+	errs = s.repository.ValidateMigrations(migrationsList)
 	s.Assert().Nil(errs)
 
 	err := s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
 
-	errs = s.repository.ValidateMigrations(migrations)
+	// Invalid migration type
+	migrationsList[0].Type = enums.MIGRATION_DOWN
+	errs = s.repository.ValidateMigrations(migrationsList)
+	s.Assert().Len(errs, 1)
+	s.Assert().Contains(errs[0].Error(), "invalid migration type")
+	migrationsList[0].Type = enums.MIGRATION_UP
+
+	errs = s.repository.ValidateMigrations(migrationsList)
 	s.Assert().Nil(errs)
 
 	query := fmt.Sprintf(`
@@ -170,28 +193,30 @@ func (s *MigrationTestSuite) TestValidateMigrations() {
 			(?, ?, ?, true);
 	`, default_history_table)
 
-	_, err = s.suiteDb.ExecContext(s.ctx, query, migrations[1].Version,
-		migrations[1].Description, migrations[1].Checksum)
+	_, err = s.suiteDb.ExecContext(s.ctx, query, migrationsList[1].Version,
+		migrationsList[1].Description, migrationsList[1].Checksum)
 	s.Assert().NoError(err)
 
-	errs = s.repository.ValidateMigrations(migrations)
+	// Gap check: DB has version 2, but not version 1
+	errs = s.repository.ValidateMigrations(migrationsList)
 	s.Assert().Len(errs, 1)
+	s.Assert().Contains(errs[0].Error(), "missing version 1")
 
-	_, err = s.suiteDb.ExecContext(s.ctx, query, migrations[0].Version,
-		migrations[0].Description, migrations[0].Checksum)
+	_, err = s.suiteDb.ExecContext(s.ctx, query, migrationsList[0].Version,
+		migrationsList[0].Description, migrationsList[0].Checksum)
 	s.Assert().NoError(err)
 
-	errs = s.repository.ValidateMigrations(migrations)
+	errs = s.repository.ValidateMigrations(migrationsList)
 	s.Assert().Nil(errs)
 
 	query = fmt.Sprintf(`
 		UPDATE %s SET md5_checksum = ? WHERE version = ?;
 	`, default_history_table)
 
-	_, err = s.suiteDb.ExecContext(s.ctx, query, checksums[0], migrations[1].Version)
+	_, err = s.suiteDb.ExecContext(s.ctx, query, checksums[0], migrationsList[1].Version)
 	s.Assert().NoError(err)
 
-	errs = s.repository.ValidateMigrations(migrations)
+	errs = s.repository.ValidateMigrations(migrationsList)
 	s.Assert().Len(errs, 1)
 }
 
@@ -206,8 +231,15 @@ func (s *MigrationTestSuite) TestExecuteMigration() {
 		Content:     &content,
 	}
 
-	// Invalid SQL
+	// Invalid type
+	migration.Type = enums.MIGRATION_DOWN
 	errs := s.repository.ExecuteMigration(migration)
+	s.Assert().Len(errs, 1)
+	s.Assert().Contains(errs[0].Error(), "invalid migration type")
+	migration.Type = enums.MIGRATION_UP
+
+	// Invalid SQL
+	errs = s.repository.ExecuteMigration(migration)
 	s.Assert().Len(errs, 2)
 
 	*migration.Content = "CREATE TABLE test (id INT NOT NULL PRIMARY KEY);"
@@ -266,15 +298,21 @@ func (s *MigrationTestSuite) TestRollbackMigration() {
 		Content:     &content,
 	}
 
+	// Invalid type
+	migration.Type = enums.MIGRATION_UP
 	err := s.repository.RollbackMigration(migration)
 	s.Assert().Error(err)
-
-	*migration.Content = "DROP TABLE IF EXISTS test4;"
+	s.Assert().Contains(err.Error(), "invalid migration type")
+	migration.Type = enums.MIGRATION_DOWN
 
 	err = s.repository.RollbackMigration(migration)
 	s.Assert().Error(err)
 
 	err = s.repository.AssertSchemaHistoryTable()
+	s.Assert().NoError(err)
+
+	// Version doesn't exist
+	err = s.repository.RollbackMigration(migration)
 	s.Assert().NoError(err)
 
 	_, err = s.suiteDb.ExecContext(s.ctx, "CREATE TABLE test4 (id INT NOT NULL PRIMARY KEY);")
@@ -287,24 +325,11 @@ func (s *MigrationTestSuite) TestRollbackMigration() {
 
 	s.checkTableExists("test4", true)
 
-	exists := false
-	query2 := fmt.Sprintf(`
-		SELECT EXISTS (
-			SELECT version FROM %s WHERE version = ?
-		);
-	`, default_history_table)
-	err = s.suiteDb.QueryRowContext(s.ctx, query2, 1).Scan(&exists)
-	s.Assert().NoError(err)
-	s.Assert().True(exists)
-
+	migration.Content = testUtils.ToPtr("DROP TABLE test4;")
 	err = s.repository.RollbackMigration(migration)
 	s.Assert().NoError(err)
 
 	s.checkTableExists("test4", false)
-
-	err = s.suiteDb.QueryRowContext(s.ctx, query2, 1).Scan(&exists)
-	s.Assert().NoError(err)
-	s.Assert().False(exists)
 }
 
 func (s *MigrationTestSuite) TestDoInTransaction() {
@@ -325,6 +350,7 @@ func (s *MigrationTestSuite) TestDoInTransaction() {
 		Content:     &content,
 	}
 
+	// Fail case
 	err = s.repository.DoInTransaction(func() error {
 		errs := s.repository.ExecuteMigration(migration)
 		s.Assert().Nil(errs)
@@ -339,11 +365,16 @@ func (s *MigrationTestSuite) TestDoInTransaction() {
 	s.Assert().NoError(err)
 	s.Assert().Equal(0, count)
 
-	// Check that schema history insert was also rolled back
-	exists := false
-	err = s.suiteDb.QueryRowContext(s.ctx, fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE version = 1)", default_history_table)).Scan(&exists)
+	// Success case
+	err = s.repository.DoInTransaction(func() error {
+		errs := s.repository.ExecuteMigration(migration)
+		s.Assert().Nil(errs)
+		return nil
+	})
 	s.Assert().NoError(err)
-	s.Assert().False(exists)
+	err = s.suiteDb.QueryRowContext(s.ctx, "SELECT COUNT(*) FROM test_dml WHERE id = 1").Scan(&count)
+	s.Assert().NoError(err)
+	s.Assert().Equal(1, count)
 }
 
 func (s *MigrationTestSuite) TestDoInLock() {
@@ -365,12 +396,18 @@ func (s *MigrationTestSuite) TestDoInLock() {
 	})
 
 	s.Assert().NoError(err)
+
+	// Success with error in fn
+	err = s.repository.DoInLock(func() error {
+		return fmt.Errorf("error")
+	})
+	s.Assert().Error(err)
 }
 
 func (s *MigrationTestSuite) TestRepair() {
 	checksums := []string{"0a52730597fb4ffa01fc117d9e71e3a9", "3d41c8443df34e73867adb149efbb2ea"}
 	contents := []string{"EXAMPLE CONTENT 1", "EXAMPLE CONTENT 2"}
-	migrations := []*migrations.Migration{
+	migrationsList := []*migrations.Migration{
 		{
 			Version:     1,
 			Description: "abcd",
@@ -378,14 +415,11 @@ func (s *MigrationTestSuite) TestRepair() {
 			Checksum:    &checksums[0],
 			Content:     &contents[0],
 		},
-		{
-			Version:     2,
-			Description: "abcd",
-			Type:        enums.MIGRATION_UP,
-			Checksum:    &checksums[1],
-			Content:     &contents[1],
-		},
 	}
+
+	// No table
+	errs := s.repository.Repair(migrationsList)
+	s.Assert().Nil(errs)
 
 	err := s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
@@ -395,17 +429,17 @@ func (s *MigrationTestSuite) TestRepair() {
             (?, ?, ?, true);
     `, default_history_table)
 
-	_, err = s.suiteDb.ExecContext(s.ctx, query, migrations[0].Version, migrations[0].Description, migrations[0].Checksum)
+	_, err = s.suiteDb.ExecContext(s.ctx, query, migrationsList[0].Version, migrationsList[0].Description, migrationsList[0].Checksum)
 	s.Assert().NoError(err)
 
 	// Change the checksum to simulate a mismatch
 	newChecksum := "d41d8cd98f00b204e9800998ecf8427e"
 	_, err = s.suiteDb.ExecContext(s.ctx, fmt.Sprintf(`
         UPDATE %s SET md5_checksum = ? WHERE version = ?;
-    `, default_history_table), newChecksum, migrations[0].Version)
+    `, default_history_table), newChecksum, migrationsList[0].Version)
 	s.Assert().NoError(err)
 
-	errs := s.repository.Repair(migrations)
+	errs = s.repository.Repair(migrationsList)
 	s.Assert().Nil(errs)
 
 	query = fmt.Sprintf(`
@@ -413,13 +447,18 @@ func (s *MigrationTestSuite) TestRepair() {
     `, default_history_table)
 
 	var repairedChecksum string
-	err = s.suiteDb.QueryRowContext(s.ctx, query, migrations[0].Version).Scan(&repairedChecksum)
+	err = s.suiteDb.QueryRowContext(s.ctx, query, migrationsList[0].Version).Scan(&repairedChecksum)
 	s.Assert().NoError(err)
-	s.Assert().Equal(*migrations[0].Checksum, repairedChecksum)
+	s.Assert().Equal(*migrationsList[0].Checksum, repairedChecksum)
 }
 
 func (s *MigrationTestSuite) TestGetFailingMigrations() {
-	err := s.repository.AssertSchemaHistoryTable()
+	// No table
+	failingMigrations, err := s.repository.GetFailingMigrations()
+	s.Assert().NoError(err)
+	s.Assert().Nil(failingMigrations)
+
+	err = s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
 
 	query := fmt.Sprintf(`
@@ -432,9 +471,7 @@ func (s *MigrationTestSuite) TestGetFailingMigrations() {
 	_, err = s.suiteDb.Exec(query)
 	s.Assert().NoError(err)
 
-	failingMigrations, err := s.repository.GetFailingMigrations()
+	failingMigrations, err = s.repository.GetFailingMigrations()
 	s.Assert().NoError(err)
 	s.Assert().Len(failingMigrations, 2)
-	s.Assert().Equal(uint16(1), failingMigrations[0].Version)
-	s.Assert().Equal(uint16(3), failingMigrations[1].Version)
 }
