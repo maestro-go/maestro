@@ -33,6 +33,8 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          install-mode: goinstall
+          skip-cache: true
           args: --timeout 5m
 
       - name: Build
