@@ -91,8 +91,27 @@ func TestMergeFlagsIfChanged(t *testing.T) {
 
 	err := cmd.ParseFlags([]string{
 		"--driver", "sqlite3",
+		"--host", "remotehost",
+		"--port", "3306",
+		"--database", "newdb",
+		"--user", "newuser",
+		"--password", "newpass",
+		"--schema", "private",
+		"--sslmode", "require",
+		"--sslrootcert", "/new/cert",
 		"--migrations", "/new/migrations",
+		"--validate=false",
+		"--down=true",
+		"--in-transaction=false",
 		"--destination", "2",
+		"--force=true",
+		"--use-repeatable=false",
+		"--use-before=false",
+		"--use-after=false",
+		"--use-before-each=false",
+		"--use-after-each=false",
+		"--use-before-version=false",
+		"--use-after-version=false",
 	})
 	require.NoError(t, err)
 
@@ -111,6 +130,25 @@ func TestMergeFlagsIfChanged(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "sqlite3", projectConfig.Driver)
+	assert.Equal(t, "remotehost", projectConfig.Host)
+	assert.Equal(t, uint16(3306), projectConfig.Port)
+	assert.Equal(t, "newdb", projectConfig.Database)
+	assert.Equal(t, "newuser", projectConfig.User)
+	assert.Equal(t, "newpass", projectConfig.Password)
+	assert.Equal(t, "private", projectConfig.Schema)
+	assert.Equal(t, "require", projectConfig.SSL.SSLMode)
+	assert.Equal(t, "/new/cert", projectConfig.SSL.SSLRootCert)
 	assert.Equal(t, []string{"/new/migrations"}, projectConfig.Migration.Locations)
+	assert.False(t, projectConfig.Migration.Validate)
+	assert.True(t, projectConfig.Migration.Down)
+	assert.False(t, projectConfig.Migration.InTransaction)
 	assert.Equal(t, uint16(2), *projectConfig.Migration.Destination)
+	assert.True(t, projectConfig.Migration.Force)
+	assert.False(t, projectConfig.Migration.UseRepeatable)
+	assert.False(t, projectConfig.Migration.UseBefore)
+	assert.False(t, projectConfig.Migration.UseAfter)
+	assert.False(t, projectConfig.Migration.UseBeforeEach)
+	assert.False(t, projectConfig.Migration.UseAfterEach)
+	assert.False(t, projectConfig.Migration.UseBeforeVersion)
+	assert.False(t, projectConfig.Migration.UseAfterVersion)
 }

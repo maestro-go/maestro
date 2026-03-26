@@ -1,4 +1,4 @@
-package postgres
+package mysql
 
 import (
 	"context"
@@ -11,9 +11,9 @@ import (
 )
 
 const default_history_table = "schema_history"
-const lock_num = 5691374
+const lock_name = "maestro_migration_lock"
 
-type PostgresRepository struct {
+type MySQLRepository struct {
 	database.Repository
 	ctx           context.Context
 	queriable     database.Queriable
@@ -21,8 +21,8 @@ type PostgresRepository struct {
 	history_table string
 }
 
-func NewPostgresRepository(ctx context.Context, db database.Database, history_table *string) *PostgresRepository {
-	repo := &PostgresRepository{
+func NewMySQLRepository(ctx context.Context, db database.Database, history_table *string) *MySQLRepository {
+	repo := &MySQLRepository{
 		ctx:       ctx,
 		queriable: db,
 		db:        db,
@@ -37,7 +37,7 @@ func NewPostgresRepository(ctx context.Context, db database.Database, history_ta
 	return repo
 }
 
-func (r *PostgresRepository) GetLatestMigration() (uint16, error) {
+func (r *MySQLRepository) GetLatestMigration() (uint16, error) {
 	tableExists, err := r.CheckSchemaHistoryTable()
 	if err != nil {
 		return 0, err
@@ -61,7 +61,7 @@ func (r *PostgresRepository) GetLatestMigration() (uint16, error) {
 	return version, nil
 }
 
-func (r *PostgresRepository) AssertSchemaHistoryTable() error {
+func (r *MySQLRepository) AssertSchemaHistoryTable() error {
 	exists, err := r.CheckSchemaHistoryTable()
 	if err != nil {
 		return err
@@ -77,8 +77,8 @@ func (r *PostgresRepository) AssertSchemaHistoryTable() error {
 			description VARCHAR(255) NOT NULL,
 			md5_checksum CHAR(32) NOT NULL,
 			success BOOLEAN NOT NULL DEFAULT false,
-			executed_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			repaired_at TIMESTAMP
+			executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			repaired_at TIMESTAMP NULL
 		);
 	`, r.history_table)
 
@@ -90,24 +90,23 @@ func (r *PostgresRepository) AssertSchemaHistoryTable() error {
 	return nil
 }
 
-func (r *PostgresRepository) CheckSchemaHistoryTable() (bool, error) {
+func (r *MySQLRepository) CheckSchemaHistoryTable() (bool, error) {
 	query := `
-		SELECT EXISTS (
-			SELECT 1 FROM information_schema.tables
-			WHERE table_name = $1
-		);
+		SELECT COUNT(*)
+		FROM information_schema.tables
+		WHERE table_schema = DATABASE() AND table_name = ?
 	`
 
-	exists := false
-	err := r.queriable.QueryRowContext(r.ctx, query, r.history_table).Scan(&exists)
+	count := 0
+	err := r.queriable.QueryRowContext(r.ctx, query, r.history_table).Scan(&count)
 	if err != nil {
 		return false, err
 	}
 
-	return exists, nil
+	return count > 0, nil
 }
 
-func (r *PostgresRepository) ValidateMigrations(migrations []*migrations.Migration) []error {
+func (r *MySQLRepository) ValidateMigrations(migrations []*migrations.Migration) []error {
 	if len(migrations) < 1 {
 		return nil
 	}
@@ -123,14 +122,13 @@ func (r *PostgresRepository) ValidateMigrations(migrations []*migrations.Migrati
 
 	tuples := make([]string, 0, len(migrations))
 	params := make([]any, 0, len(migrations)*3)
-	for i, migration := range migrations {
+	for _, migration := range migrations {
 
 		if migration.Type != enums.MIGRATION_UP {
 			return []error{fmt.Errorf("invalid migration type: %s", migration.Type.Name())}
 		}
 
-		offset := i * 3
-		tuples = append(tuples, fmt.Sprintf("($%d, $%d, $%d)", offset+1, offset+2, offset+3))
+		tuples = append(tuples, "(?, ?, ?)")
 		params = append(params, migration.Version, migration.Description, *migration.Checksum)
 	}
 
@@ -198,7 +196,7 @@ func (r *PostgresRepository) ValidateMigrations(migrations []*migrations.Migrati
 	return nil
 }
 
-func (r *PostgresRepository) ExecuteMigration(migration *migrations.Migration) []error {
+func (r *MySQLRepository) ExecuteMigration(migration *migrations.Migration) []error {
 	if migration.Type != enums.MIGRATION_UP {
 		return []error{fmt.Errorf("invalid migration type: %s", migration.Type.Name())}
 	}
@@ -212,9 +210,12 @@ func (r *PostgresRepository) ExecuteMigration(migration *migrations.Migration) [
 
 	query := fmt.Sprintf(`
 		INSERT INTO %s (version, description, md5_checksum, success)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (version)
-		DO UPDATE SET description = $2, md5_checksum = $3, success = $4, executed_at = NOW();
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE 
+            description = VALUES(description), 
+            md5_checksum = VALUES(md5_checksum), 
+            success = VALUES(success), 
+            executed_at = CURRENT_TIMESTAMP;
 	`, r.history_table)
 
 	_, err = r.queriable.ExecContext(r.ctx, query, migration.Version, migration.Description,
@@ -231,7 +232,7 @@ func (r *PostgresRepository) ExecuteMigration(migration *migrations.Migration) [
 	return nil
 }
 
-func (r *PostgresRepository) ExecuteHook(hook *migrations.Hook) error {
+func (r *MySQLRepository) ExecuteHook(hook *migrations.Hook) error {
 	_, err := r.queriable.ExecContext(r.ctx, *hook.Content)
 	if err != nil {
 		return err
@@ -240,14 +241,14 @@ func (r *PostgresRepository) ExecuteHook(hook *migrations.Hook) error {
 	return nil
 }
 
-func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) error {
+func (r *MySQLRepository) RollbackMigration(migration *migrations.Migration) error {
 	if migration.Type != enums.MIGRATION_DOWN {
 		return fmt.Errorf("invalid migration type: %s", migration.Type.Name())
 	}
 
 	query := fmt.Sprintf(`
 		SELECT EXISTS (
-			SELECT version FROM %s WHERE version = $1
+			SELECT version FROM %s WHERE version = ?
 		);
 	`, r.history_table)
 
@@ -268,7 +269,7 @@ func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) 
 
 	query = fmt.Sprintf(`
 		DELETE FROM %s
-		WHERE version = $1;
+		WHERE version = ?;
 	`, r.history_table)
 
 	res, err := r.queriable.ExecContext(r.ctx, query, migration.Version)
@@ -288,7 +289,7 @@ func (r *PostgresRepository) RollbackMigration(migration *migrations.Migration) 
 	return nil
 }
 
-func (r *PostgresRepository) DoInTransaction(fn func() error) error {
+func (r *MySQLRepository) DoInTransaction(fn func() error) error {
 	tx, err := r.db.BeginTx(r.ctx, nil)
 	if err != nil {
 		return err
@@ -310,13 +311,20 @@ func (r *PostgresRepository) DoInTransaction(fn func() error) error {
 	return nil
 }
 
-func (r *PostgresRepository) DoInLock(fn func() error) error {
-	_, err := r.db.ExecContext(r.ctx, "select pg_advisory_lock($1)", lock_num)
+func (r *MySQLRepository) DoInLock(fn func() error) error {
+	var lockResult int
+	query := "SELECT GET_LOCK(?, 60)"
+	err := r.db.QueryRowContext(r.ctx, query, lock_name).Scan(&lockResult)
 	if err != nil {
 		return fmt.Errorf("failed to acquire advisory lock: %w", err)
 	}
+	if lockResult != 1 {
+		return fmt.Errorf("failed to acquire advisory lock: timeout or error")
+	}
+
 	defer func() {
-		_, err = r.db.ExecContext(r.ctx, "select pg_advisory_unlock($1)", lock_num)
+		query := "SELECT RELEASE_LOCK(?)"
+		_, err = r.db.ExecContext(r.ctx, query, lock_name)
 		if err != nil {
 			panic(fmt.Errorf("failed to release advisory lock: %w", err))
 		}
@@ -330,7 +338,7 @@ func (r *PostgresRepository) DoInLock(fn func() error) error {
 	return nil
 }
 
-func (r *PostgresRepository) Repair(migrations []*migrations.Migration) []error {
+func (r *MySQLRepository) Repair(migrations []*migrations.Migration) []error {
 	tableExists, err := r.CheckSchemaHistoryTable()
 	if err != nil {
 		return []error{err}
@@ -345,15 +353,17 @@ func (r *PostgresRepository) Repair(migrations []*migrations.Migration) []error 
 	for _, migration := range migrations {
 		query := fmt.Sprintf(`
 			INSERT INTO %s (version, description, md5_checksum, success, repaired_at)
-			VALUES ($1, $2, $3, true, NOW())
-			ON CONFLICT (version) DO UPDATE
-			SET description = EXCLUDED.description, md5_checksum = EXCLUDED.md5_checksum, success = true,
-				repaired_at = CASE
-					WHEN EXCLUDED.description <> %s.description OR EXCLUDED.md5_checksum <> %s.md5_checksum
-					THEN NOW()
-					ELSE %s.repaired_at
-				END;
-		`, r.history_table, r.history_table, r.history_table, r.history_table)
+			VALUES (?, ?, ?, true, CURRENT_TIMESTAMP)
+			ON DUPLICATE KEY UPDATE
+			repaired_at = CASE
+				WHEN description <> VALUES(description) OR md5_checksum <> VALUES(md5_checksum)
+				THEN CURRENT_TIMESTAMP
+				ELSE repaired_at
+			END,
+			description = VALUES(description),
+			md5_checksum = VALUES(md5_checksum),
+			success = true;
+		`, r.history_table)
 
 		_, err := r.queriable.ExecContext(r.ctx, query, migration.Version, migration.Description, *migration.Checksum)
 		if err != nil {
@@ -367,7 +377,7 @@ func (r *PostgresRepository) Repair(migrations []*migrations.Migration) []error 
 	return nil
 }
 
-func (r *PostgresRepository) GetFailingMigrations() ([]*migrations.Migration, error) {
+func (r *MySQLRepository) GetFailingMigrations() ([]*migrations.Migration, error) {
 	exists, err := r.CheckSchemaHistoryTable()
 	if err != nil {
 		return nil, err

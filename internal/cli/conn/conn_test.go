@@ -2,7 +2,6 @@ package conn_test
 
 import (
 	"context"
-	"database/sql"
 	"strconv"
 	"testing"
 
@@ -13,32 +12,30 @@ import (
 	testUtils "github.com/maestro-go/maestro/internal/utils/testing"
 	"github.com/stretchr/testify/suite"
 
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type ConnTestSuite struct {
 	suite.Suite
-	postgres        *testUtils.PostgresContainer
-	postgresSuiteDB *sql.DB
-
-	ctx context.Context
+	postgres *testUtils.PostgresContainer
+	mysql    *testUtils.MySQLContainer
+	ctx      context.Context
 }
 
 func (s *ConnTestSuite) SetupSuite() {
 	s.ctx = context.Background()
-
 	s.postgres = testUtils.SetupPostgres(s.T())
 
-	pqDB, err := sql.Open("postgres", s.postgres.URI)
-	s.Assert().NoError(err)
-
-	s.postgresSuiteDB = pqDB
+	var err error
+	s.mysql, err = testUtils.SetupMySQLContainer(s.ctx)
+	s.Require().NoError(err)
 }
 
 func (s *ConnTestSuite) TearDownSuite() {
-	if s.postgresSuiteDB != nil {
-		s.postgresSuiteDB.Close()
+	if s.mysql != nil {
+		s.mysql.Teardown(s.ctx)
 	}
 }
 
@@ -56,8 +53,31 @@ func (s *ConnTestSuite) TestConn() {
 		config.Database = s.postgres.Database
 		config.User = s.postgres.Username
 		config.Password = s.postgres.Password
+		config.SSL.SSLMode = "disable"
 
 		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, enums.DRIVER_POSTGRES)
+		s.Assert().NoError(err)
+		s.Assert().NotNil(repo)
+		s.Assert().NotNil(cleanup)
+		cleanup()
+	})
+
+	s.Run("should connect to mysql", func() {
+		config := &conf.ProjectConfig{}
+		defaults.MustSet(config)
+		
+		host, err := s.mysql.Host(s.ctx)
+		s.Require().NoError(err)
+		port, err := s.mysql.MappedPort(s.ctx, "3306")
+		s.Require().NoError(err)
+		
+		config.Host = host
+		config.Port = uint16(port.Int())
+		config.Database = "testdb"
+		config.User = "testuser"
+		config.Password = "testpassword"
+
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, enums.DRIVER_MYSQL)
 		s.Assert().NoError(err)
 		s.Assert().NotNil(repo)
 		s.Assert().NotNil(cleanup)
@@ -81,6 +101,29 @@ func (s *ConnTestSuite) TestConn() {
 		defaults.MustSet(config)
 
 		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, 99)
+		s.Assert().Error(err)
+		s.Assert().Nil(repo)
+		s.Assert().Nil(cleanup)
+	})
+
+	s.Run("should fail to connect to postgres with wrong port", func() {
+		config := &conf.ProjectConfig{}
+		defaults.MustSet(config)
+		config.Port = 1234
+		config.SSL.SSLMode = "disable"
+
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, enums.DRIVER_POSTGRES)
+		s.Assert().Error(err)
+		s.Assert().Nil(repo)
+		s.Assert().Nil(cleanup)
+	})
+
+	s.Run("should fail to connect to mysql with wrong port", func() {
+		config := &conf.ProjectConfig{}
+		defaults.MustSet(config)
+		config.Port = 1234
+
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, enums.DRIVER_MYSQL)
 		s.Assert().Error(err)
 		s.Assert().Nil(repo)
 		s.Assert().Nil(cleanup)

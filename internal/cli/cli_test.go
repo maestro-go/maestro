@@ -371,3 +371,76 @@ func (s *CliTestSuite) TestEntirePipeline() {
 		s.Assert().NoError(err)
 	})
 }
+
+func (s *CliTestSuite) TestStandaloneCommands() {
+	s.Run("test create command with down", func() {
+		projectDir := s.T().TempDir()
+		migrationsDir := filepath.Join(projectDir, "migrations")
+		os.Mkdir(migrationsDir, os.ModePerm)
+
+		rootCmd := cli.SetupRootCommand()
+		rootCmd.SetArgs([]string{"create", "test_down", "-l", projectDir, "-m", migrationsDir, "--with-down"})
+		err := rootCmd.Execute()
+		s.Require().NoError(err)
+
+		s.checkFileExists(migrationsDir, "V001_test_down.sql", true)
+		s.checkFileExists(migrationsDir, "V001_test_down.down.sql", true)
+	})
+
+	s.Run("test commands without config file", func() {
+		projectDirNoConfig := s.T().TempDir()
+		migrationsDirNoConfig := filepath.Join(projectDirNoConfig, "migrations")
+		os.Mkdir(migrationsDirNoConfig, os.ModePerm)
+
+		// Test status without config
+		rootCmd := cli.SetupRootCommand()
+		rootCmd.SetArgs([]string{"status", "-l", projectDirNoConfig, "-m", migrationsDirNoConfig,
+			"--driver", "postgres", "--host", "localhost", "--port", s.postgres.Port,
+			"--database", s.postgres.Database, "--user", s.postgres.Username, "--password", s.postgres.Password})
+		err := rootCmd.Execute()
+		s.Assert().NoError(err)
+
+		// Test create without config
+		rootCmd = cli.SetupRootCommand()
+		rootCmd.SetArgs([]string{"create", "no_config_test", "-l", projectDirNoConfig, "-m", migrationsDirNoConfig})
+		err = rootCmd.Execute()
+		s.Assert().NoError(err)
+		s.checkFileExists(migrationsDirNoConfig, "V001_no_config_test.sql", true)
+
+		// Test repair without config
+		rootCmd = cli.SetupRootCommand()
+		rootCmd.SetArgs([]string{"repair", "-l", projectDirNoConfig, "-m", migrationsDirNoConfig,
+			"--driver", "postgres", "--host", "localhost", "--port", s.postgres.Port,
+			"--database", s.postgres.Database, "--user", s.postgres.Username, "--password", s.postgres.Password})
+		err = rootCmd.Execute()
+		s.Assert().NoError(err)
+	})
+
+	s.Run("test migrate without migrations", func() {
+		projectDirEmpty := s.T().TempDir()
+		migrationsDirEmpty := filepath.Join(projectDirEmpty, "migrations")
+		os.Mkdir(migrationsDirEmpty, os.ModePerm)
+
+		rootCmd := cli.SetupRootCommand()
+		rootCmd.SetArgs([]string{"migrate", "-l", projectDirEmpty, "-m", migrationsDirEmpty,
+			"--driver", "postgres", "--host", "localhost", "--port", s.postgres.Port,
+			"--database", s.postgres.Database, "--user", s.postgres.Username, "--password", s.postgres.Password})
+		err := rootCmd.Execute()
+		s.Assert().NoError(err)
+	})
+
+	s.Run("test init command already initialized", func() {
+		projectDir := s.T().TempDir()
+		migrationsDir := filepath.Join(projectDir, "migrations")
+		os.Mkdir(migrationsDir, os.ModePerm)
+
+		rootCmd := cli.SetupRootCommand()
+		rootCmd.SetArgs([]string{"init", "-l", projectDir, "-m", migrationsDir})
+		err := rootCmd.Execute()
+		s.Require().NoError(err)
+
+		// Run again
+		err = rootCmd.Execute()
+		s.Require().NoError(err)
+	})
+}
