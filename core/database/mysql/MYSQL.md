@@ -18,6 +18,15 @@ The following configuration options are available for the MySQL driver.
 - `user`: The username for authentication.
 - `password`: The password for authentication.
 
+### SSH (CLI only)
+
+- `ssh-host`: The SSH server host.
+- `ssh-port`: The SSH server port. Defaults to `22`.
+- `ssh-user`: The SSH username.
+- `ssh-password`: The SSH password.
+- `ssh-key-path`: The path to the SSH private key file.
+- `ssh-passphrase`: The passphrase for the SSH private key.
+
 ---
 
 ## 🚀 Examples
@@ -76,6 +85,7 @@ func main() {
 ## ⚠️ Important Considerations
 
 ### DDL Transactions
-MySQL does **not** support DDL transactions (e.g., `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`). Any DDL statement will cause an **implicit commit**, meaning that if a migration containing both DDL and DML (or multiple DDLs) fails, the changes made by preceding statements will NOT be rolled back. 
+
+MySQL does **not** support DDL transactions (e.g., `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`). Any DDL statement will cause an **implicit commit**, meaning that if a migration containing both DDL and DML (or multiple DDLs) fails, the changes made by preceding statements will NOT be rolled back.
 
 It is recommended to keep each migration script atomic and focused on a single logical change to minimize the risk of partial migration states.

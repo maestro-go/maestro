@@ -24,6 +24,15 @@ The following configuration options are available for the PostgreSQL driver.
 - `sslmode`: The SSL mode. Can be `disable`, `allow`, `prefer`, `require`, `verify-ca`, or `verify-full`.
 - `sslrootcert`: The path to the SSL root certificate file.
 
+### SSH (CLI only)
+
+- `ssh-host`: The SSH server host.
+- `ssh-port`: The SSH server port. Defaults to `22`.
+- `ssh-user`: The SSH username.
+- `ssh-password`: The SSH password.
+- `ssh-key-path`: The path to the SSH private key file.
+- `ssh-passphrase`: The passphrase for the SSH private key.
+
 ---
 
 ## 🚀 Examples

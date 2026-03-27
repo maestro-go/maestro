@@ -5,6 +5,15 @@ type sslConfig struct {
 	SSLRootCert string `yaml:"sslrootcert,omitempty"`
 }
 
+type SSHConfig struct {
+	Host       string `yaml:"host,omitempty"`
+	Port       uint16 `yaml:"port" default:"22"`
+	User       string `yaml:"user,omitempty"`
+	Password   string `yaml:"password,omitempty"`
+	KeyPath    string `yaml:"key-path,omitempty"`
+	Passphrase string `yaml:"passphrase,omitempty"`
+}
+
 type MigrationConfig struct {
 	Locations        []string `yaml:"locations" default:"[\"./migrations\"]"`
 	Validate         bool     `yaml:"validate" default:"true"`
@@ -32,6 +41,8 @@ type ProjectConfig struct {
 	HistoryTable string `yaml:"history-table" default:"schema_history"`
 
 	SSL sslConfig `yaml:"ssl"`
+
+	SSH SSHConfig `yaml:"ssh"`
 
 	Migration MigrationConfig `yaml:"migrations"`
 }

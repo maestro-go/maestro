@@ -19,6 +19,14 @@ func SetupDBConfigFlags(cmd *cobra.Command) {
 	// SSLConfig flags
 	cmd.Flags().String("sslmode", "disable", "SSL mode for the database connection.")
 	cmd.Flags().String("sslrootcert", "", "Path to the SSL root certificate.")
+
+	// SSHConfig flags
+	cmd.Flags().String("ssh-host", "", "SSH host.")
+	cmd.Flags().Uint16("ssh-port", 22, "SSH port.")
+	cmd.Flags().String("ssh-user", "", "SSH user.")
+	cmd.Flags().String("ssh-password", "", "SSH password.")
+	cmd.Flags().String("ssh-key-path", "", "Path to the SSH private key.")
+	cmd.Flags().String("ssh-passphrase", "", "Passphrase for the SSH private key.")
 }
 
 func ExtractDBConfigFlags(cmd *cobra.Command, config *conf.ProjectConfig) error {
@@ -72,6 +80,37 @@ func ExtractDBConfigFlags(cmd *cobra.Command, config *conf.ProjectConfig) error 
 	}
 
 	config.SSL.SSLRootCert, err = cmd.Flags().GetString("sslrootcert")
+	if err != nil {
+		return err
+	}
+
+	// Extract SSHConfig flags
+	config.SSH.Host, err = cmd.Flags().GetString("ssh-host")
+	if err != nil {
+		return err
+	}
+
+	config.SSH.Port, err = cmd.Flags().GetUint16("ssh-port")
+	if err != nil {
+		return err
+	}
+
+	config.SSH.User, err = cmd.Flags().GetString("ssh-user")
+	if err != nil {
+		return err
+	}
+
+	config.SSH.Password, err = cmd.Flags().GetString("ssh-password")
+	if err != nil {
+		return err
+	}
+
+	config.SSH.KeyPath, err = cmd.Flags().GetString("ssh-key-path")
+	if err != nil {
+		return err
+	}
+
+	config.SSH.Passphrase, err = cmd.Flags().GetString("ssh-passphrase")
 	if err != nil {
 		return err
 	}
@@ -135,6 +174,44 @@ func MergeDBConfigFlags(cmd *cobra.Command, config *conf.ProjectConfig) error {
 	}
 	if cmd.Flags().Changed("sslrootcert") {
 		config.SSL.SSLRootCert, err = cmd.Flags().GetString("sslrootcert")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Extract and override SSH-related flags
+	if cmd.Flags().Changed("ssh-host") {
+		config.SSH.Host, err = cmd.Flags().GetString("ssh-host")
+		if err != nil {
+			return err
+		}
+	}
+	if cmd.Flags().Changed("ssh-port") {
+		config.SSH.Port, err = cmd.Flags().GetUint16("ssh-port")
+		if err != nil {
+			return err
+		}
+	}
+	if cmd.Flags().Changed("ssh-user") {
+		config.SSH.User, err = cmd.Flags().GetString("ssh-user")
+		if err != nil {
+			return err
+		}
+	}
+	if cmd.Flags().Changed("ssh-password") {
+		config.SSH.Password, err = cmd.Flags().GetString("ssh-password")
+		if err != nil {
+			return err
+		}
+	}
+	if cmd.Flags().Changed("ssh-key-path") {
+		config.SSH.KeyPath, err = cmd.Flags().GetString("ssh-key-path")
+		if err != nil {
+			return err
+		}
+	}
+	if cmd.Flags().Changed("ssh-passphrase") {
+		config.SSH.Passphrase, err = cmd.Flags().GetString("ssh-passphrase")
 		if err != nil {
 			return err
 		}

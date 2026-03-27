@@ -11,6 +11,7 @@ import (
 	"github.com/maestro-go/maestro/internal/cli/conn"
 	testUtils "github.com/maestro-go/maestro/internal/utils/testing"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/zap"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
@@ -22,10 +23,12 @@ type ConnTestSuite struct {
 	postgres *testUtils.PostgresContainer
 	mysql    *testUtils.MySQLContainer
 	ctx      context.Context
+	logger   *zap.Logger
 }
 
 func (s *ConnTestSuite) SetupSuite() {
 	s.ctx = context.Background()
+	s.logger = zap.NewNop()
 	s.postgres = testUtils.SetupPostgres(s.T())
 
 	var err error
@@ -55,7 +58,7 @@ func (s *ConnTestSuite) TestConn() {
 		config.Password = s.postgres.Password
 		config.SSL.SSLMode = "disable"
 
-		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, enums.DRIVER_POSTGRES)
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, s.logger, config, enums.DRIVER_POSTGRES)
 		s.Assert().NoError(err)
 		s.Assert().NotNil(repo)
 		s.Assert().NotNil(cleanup)
@@ -77,7 +80,7 @@ func (s *ConnTestSuite) TestConn() {
 		config.User = "testuser"
 		config.Password = "testpassword"
 
-		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, enums.DRIVER_MYSQL)
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, s.logger, config, enums.DRIVER_MYSQL)
 		s.Assert().NoError(err)
 		s.Assert().NotNil(repo)
 		s.Assert().NotNil(cleanup)
@@ -89,7 +92,7 @@ func (s *ConnTestSuite) TestConn() {
 		defaults.MustSet(config)
 		config.Database = ":memory:"
 
-		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, enums.DRIVER_SQLITE3)
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, s.logger, config, enums.DRIVER_SQLITE3)
 		s.Assert().NoError(err)
 		s.Assert().NotNil(repo)
 		s.Assert().NotNil(cleanup)
@@ -100,7 +103,7 @@ func (s *ConnTestSuite) TestConn() {
 		config := &conf.ProjectConfig{}
 		defaults.MustSet(config)
 
-		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, 99)
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, s.logger, config, 99)
 		s.Assert().Error(err)
 		s.Assert().Nil(repo)
 		s.Assert().Nil(cleanup)
@@ -112,7 +115,7 @@ func (s *ConnTestSuite) TestConn() {
 		config.Port = 1234
 		config.SSL.SSLMode = "disable"
 
-		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, enums.DRIVER_POSTGRES)
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, s.logger, config, enums.DRIVER_POSTGRES)
 		s.Assert().Error(err)
 		s.Assert().Nil(repo)
 		s.Assert().Nil(cleanup)
@@ -123,7 +126,7 @@ func (s *ConnTestSuite) TestConn() {
 		defaults.MustSet(config)
 		config.Port = 1234
 
-		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, config, enums.DRIVER_MYSQL)
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, s.logger, config, enums.DRIVER_MYSQL)
 		s.Assert().Error(err)
 		s.Assert().Nil(repo)
 		s.Assert().Nil(cleanup)
