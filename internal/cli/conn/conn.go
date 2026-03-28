@@ -16,7 +16,6 @@ import (
 	"github.com/maestro-go/maestro/core/database/sqlite3"
 	"github.com/maestro-go/maestro/core/enums"
 
-	_ "github.com/sijms/go-ora/v2"
 	"github.com/maestro-go/maestro/internal/ssh"
 	"github.com/maestro-go/maestro/internal/utils/net"
 	"go.uber.org/zap"
