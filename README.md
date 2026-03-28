@@ -72,10 +72,7 @@ go get github.com/maestro-go/maestro/core
 - ✅ [CockroachDB](/core/database/cockroachdb/COCKROACH.md)
 - ✅ [SQLite3](/core/database/sqlite3/SQLITE3.md)
 - ✅ [MySQL](/core/database/mysql/MYSQL.md)
-
-### In Progress
-
-- 🚧 ClickHouse
+- ✅ [ClickHouse](/core/database/clickhouse/CLICKHOUSE.md)
 
 ## Key Features
 
