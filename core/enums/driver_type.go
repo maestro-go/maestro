@@ -15,5 +15,6 @@ var MapStringToDriverType = map[string]DriverType{
 	"cockroachdb": DRIVER_COCKROACHDB,
 	"sqlite3":     DRIVER_SQLITE3,
 	"mysql":       DRIVER_MYSQL,
+	"mariadb":     DRIVER_MYSQL,
 	"clickhouse":  DRIVER_CLICKHOUSE,
 }
