@@ -8,6 +8,7 @@ const (
 	DRIVER_SQLITE3
 	DRIVER_MYSQL
 	DRIVER_CLICKHOUSE
+	DRIVER_ORACLE
 )
 
 var MapStringToDriverType = map[string]DriverType{
@@ -17,4 +18,5 @@ var MapStringToDriverType = map[string]DriverType{
 	"mysql":       DRIVER_MYSQL,
 	"mariadb":     DRIVER_MYSQL,
 	"clickhouse":  DRIVER_CLICKHOUSE,
+	"oracle":      DRIVER_ORACLE,
 }

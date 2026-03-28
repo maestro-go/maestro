@@ -131,4 +131,15 @@ func (s *ConnTestSuite) TestConn() {
 		s.Assert().Nil(repo)
 		s.Assert().Nil(cleanup)
 	})
+
+	s.Run("should fail to connect to oracle with wrong port", func() {
+		config := &conf.ProjectConfig{}
+		defaults.MustSet(config)
+		config.Port = 1234
+
+		repo, cleanup, err := conn.ConnectToDatabase(s.ctx, s.logger, config, enums.DRIVER_ORACLE)
+		s.Assert().Error(err)
+		s.Assert().Nil(repo)
+		s.Assert().Nil(cleanup)
+	})
 }
