@@ -358,6 +358,17 @@ func (s *CliTestSuite) TestEntirePipeline() {
 		s.checkTableExists("test3", false)
 	})
 
+	s.Run("test ssh flags attempt tunnel", func() {
+		rootCmd := cli.SetupRootCommand()
+		rootCmd.SetArgs([]string{
+			"status", "-l", projectDir,
+			"--ssh-host", "localhost", "--ssh-port", "2222", "--ssh-user", "test",
+		})
+		err := rootCmd.Execute()
+		s.Assert().Error(err)
+		s.Assert().Contains(err.Error(), "failed to start SSH tunnel")
+	})
+
 	s.Run("test all flags merge", func() {
 		rootCmd := cli.SetupRootCommand()
 		rootCmd.SetArgs([]string{
@@ -366,6 +377,7 @@ func (s *CliTestSuite) TestEntirePipeline() {
 			"--use-after-each=true", "--use-before-version=true", "--use-after-version=true", "--driver=postgres",
 			"--host=localhost", "--port", s.postgres.Port, "--database", s.postgres.Database, "--user", s.postgres.Username,
 			"--password", s.postgres.Password, "--schema=public", "--sslmode=disable", "--sslrootcert=\"\"",
+			"--ssh-host=", "--ssh-port=22", "--ssh-user=user", "--ssh-password=pass", "--ssh-key-path=", "--ssh-passphrase=",
 		})
 		err := rootCmd.Execute()
 		s.Assert().NoError(err)

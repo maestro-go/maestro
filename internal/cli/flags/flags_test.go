@@ -28,6 +28,12 @@ func TestExtractAllFlags(t *testing.T) {
 		"--history-table", "history",
 		"--sslmode", "disable",
 		"--sslrootcert", "/path/to/cert",
+		"--ssh-host", "ssh-host",
+		"--ssh-port", "22",
+		"--ssh-user", "ssh-user",
+		"--ssh-password", "ssh-pass",
+		"--ssh-key-path", "/path/to/key",
+		"--ssh-passphrase", "ssh-passphrase",
 		"--location", "/tmp",
 		"--migrations", "/migrations",
 		"--validate=false",
@@ -67,6 +73,12 @@ func TestExtractAllFlags(t *testing.T) {
 	assert.Equal(t, "history", projectConfig.HistoryTable)
 	assert.Equal(t, "disable", projectConfig.SSL.SSLMode)
 	assert.Equal(t, "/path/to/cert", projectConfig.SSL.SSLRootCert)
+	assert.Equal(t, "ssh-host", projectConfig.SSH.Host)
+	assert.Equal(t, uint16(22), projectConfig.SSH.Port)
+	assert.Equal(t, "ssh-user", projectConfig.SSH.User)
+	assert.Equal(t, "ssh-pass", projectConfig.SSH.Password)
+	assert.Equal(t, "/path/to/key", projectConfig.SSH.KeyPath)
+	assert.Equal(t, "ssh-passphrase", projectConfig.SSH.Passphrase)
 	assert.Equal(t, "/tmp", globalFlags.Location)
 	assert.Equal(t, []string{"/migrations"}, globalFlags.MigrationLocations)
 	assert.False(t, projectConfig.Migration.Validate)
@@ -99,6 +111,12 @@ func TestMergeFlagsIfChanged(t *testing.T) {
 		"--schema", "private",
 		"--sslmode", "require",
 		"--sslrootcert", "/new/cert",
+		"--ssh-host", "new-ssh-host",
+		"--ssh-port", "2222",
+		"--ssh-user", "new-ssh-user",
+		"--ssh-password", "new-ssh-pass",
+		"--ssh-key-path", "/new/ssh/key",
+		"--ssh-passphrase", "new-ssh-passphrase",
 		"--migrations", "/new/migrations",
 		"--validate=false",
 		"--down=true",
@@ -138,6 +156,12 @@ func TestMergeFlagsIfChanged(t *testing.T) {
 	assert.Equal(t, "private", projectConfig.Schema)
 	assert.Equal(t, "require", projectConfig.SSL.SSLMode)
 	assert.Equal(t, "/new/cert", projectConfig.SSL.SSLRootCert)
+	assert.Equal(t, "new-ssh-host", projectConfig.SSH.Host)
+	assert.Equal(t, uint16(2222), projectConfig.SSH.Port)
+	assert.Equal(t, "new-ssh-user", projectConfig.SSH.User)
+	assert.Equal(t, "new-ssh-pass", projectConfig.SSH.Password)
+	assert.Equal(t, "/new/ssh/key", projectConfig.SSH.KeyPath)
+	assert.Equal(t, "new-ssh-passphrase", projectConfig.SSH.Passphrase)
 	assert.Equal(t, []string{"/new/migrations"}, projectConfig.Migration.Locations)
 	assert.False(t, projectConfig.Migration.Validate)
 	assert.True(t, projectConfig.Migration.Down)
