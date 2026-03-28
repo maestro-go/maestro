@@ -11,10 +11,12 @@ import (
 	"github.com/maestro-go/maestro/core/database/clickhouse"
 	"github.com/maestro-go/maestro/core/database/cockroachdb"
 	"github.com/maestro-go/maestro/core/database/mysql"
+	"github.com/maestro-go/maestro/core/database/oracle"
 	"github.com/maestro-go/maestro/core/database/postgres"
 	"github.com/maestro-go/maestro/core/database/sqlite3"
 	"github.com/maestro-go/maestro/core/enums"
 
+	_ "github.com/sijms/go-ora/v2"
 	"github.com/maestro-go/maestro/internal/ssh"
 	"github.com/maestro-go/maestro/internal/utils/net"
 	"go.uber.org/zap"
@@ -103,6 +105,22 @@ func ConnectToDatabase(ctx context.Context, logger *zap.Logger, config *conf.Pro
 		db.SetConnMaxLifetime(5 * time.Minute)
 
 		repo = clickhouse.NewClickHouseRepository(ctx, db, &config.HistoryTable)
+
+	case enums.DRIVER_ORACLE:
+		var err error
+		db, err = connectToOracle(config)
+		if err != nil {
+			if tunnel != nil {
+				tunnel.Close()
+			}
+			return nil, nil, err
+		}
+
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(25)
+		db.SetConnMaxLifetime(5 * time.Minute)
+
+		repo = oracle.NewOracleRepository(ctx, db, &config.HistoryTable)
 
 	case enums.DRIVER_SQLITE3:
 		var err error
@@ -199,6 +217,38 @@ func connectToClickHouse(config *conf.ProjectConfig) (*sql.DB, error) {
 
 	// Establish database connection
 	db, err := sql.Open("clickhouse", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("database connection failed: %w", err)
+	}
+
+	// Verify connection
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("database ping failed: %w", err)
+	}
+
+	return db, nil
+}
+
+func connectToOracle(config *conf.ProjectConfig) (*sql.DB, error) {
+	port := config.Port
+	if port == 0 {
+		port = 1521
+	}
+
+	// go-ora format: oracle://user:password@host:port/service_name
+	dsn := fmt.Sprintf("oracle://%s:%s@%s:%d/%s",
+		config.User,
+		config.Password,
+		config.Host,
+		port,
+		config.Database,
+	)
+
+	// Establish database connection
+	db, err := sql.Open("oracle", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("database connection failed: %w", err)
 	}

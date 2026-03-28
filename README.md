@@ -73,6 +73,7 @@ go get github.com/maestro-go/maestro/core
 - ✅ [SQLite3](/core/database/sqlite3/SQLITE3.md)
 - ✅ [MySQL / MariaDB](/core/database/mysql/MYSQL.md)
 - ✅ [ClickHouse](/core/database/clickhouse/CLICKHOUSE.md)
+- ✅ [Oracle](/core/database/oracle/ORACLE.md)
 
 ## Key Features
 
