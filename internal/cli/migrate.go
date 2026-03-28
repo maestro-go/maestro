@@ -6,6 +6,7 @@ import (
 	"log"
 	"path/filepath"
 
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"github.com/maestro-go/maestro/core/conf"
 	"github.com/maestro-go/maestro/core/enums"
