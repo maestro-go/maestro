@@ -107,7 +107,7 @@ func runMigrateCommand(cmd *cobra.Command, args []string) error {
 		return genError(ErrInvalidDriver, errors.New(projectConfig.Driver))
 	}
 
-	repo, cleanup, err := conn.ConnectToDatabase(ctx, projectConfig, driver)
+	repo, cleanup, err := conn.ConnectToDatabase(ctx, logger, projectConfig, driver)
 	if err != nil {
 		logError(logger, ErrConnectToDatabase, err)
 		return genError(ErrConnectToDatabase, err)

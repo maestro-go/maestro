@@ -84,9 +84,6 @@ go get github.com/maestro-go/maestro/core
 - 🔒 Validate migrations with MD5 checksums
 - 🪝 Utilize a flexible hooks system
 - 📝 Track migration history clearly
-
-### Upcoming Features
-
 - 🔑 Built-in SSH tunnel support
 
 ## Migrations

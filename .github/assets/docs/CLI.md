@@ -116,6 +116,28 @@ Specifies the project directory. Default is the current directory.
 
 Specifies the migrations directories. Default is `./migrations`.
 
+## SSH Flags
+
+You can use SSH tunneling to connect to your database.
+
+### `--ssh-host`
+Specifies the SSH host.
+
+### `--ssh-port`
+Specifies the SSH port. Default is `22`.
+
+### `--ssh-user`
+Specifies the SSH user.
+
+### `--ssh-password`
+Specifies the SSH password.
+
+### `--ssh-key-path`
+Specifies the path to the SSH private key.
+
+### `--ssh-passphrase`
+Specifies the passphrase for the SSH private key.
+
 ## Examples
 
 ### Initialize a Project
