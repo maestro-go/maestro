@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/maestro-go/maestro/core/database"
 	"github.com/maestro-go/maestro/core/enums"
@@ -285,9 +286,43 @@ func (r *ClickHouseRepository) DoInTransaction(fn func() error) error {
 }
 
 func (r *ClickHouseRepository) DoInLock(fn func() error) error {
-	// As discussed, ClickHouse doesn't have a built-in advisory lock.
-	// For now, we'll just execute the function.
-	return fn()
+	lockTable := r.history_table + "_lock"
+	maxRetries := 60
+	retryInterval := 1 * time.Second
+	lockTimeout := 10 * time.Minute
+
+	for i := 0; i < maxRetries; i++ {
+		query := fmt.Sprintf(`
+			CREATE TABLE %s
+			ENGINE = Memory
+			AS SELECT now() AS created_at, 'maestro' AS owner;
+		`, lockTable)
+
+		_, err := r.db.ExecContext(r.ctx, query)
+		if err == nil {
+			defer r.db.ExecContext(r.ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", lockTable))
+			return fn()
+		}
+
+		var createdAt time.Time
+		checkQuery := fmt.Sprintf("SELECT created_at FROM %s LIMIT 1", lockTable)
+		err = r.db.QueryRowContext(r.ctx, checkQuery).Scan(&createdAt)
+		if err == nil {
+			if time.Since(createdAt) > lockTimeout {
+				// Lock is stale, try to drop it.
+				r.db.ExecContext(r.ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", lockTable))
+				continue
+			}
+		}
+
+		select {
+		case <-r.ctx.Done():
+			return r.ctx.Err()
+		case <-time.After(retryInterval):
+		}
+	}
+
+	return fmt.Errorf("failed to acquire ClickHouse migration lock on table %s after %d retries", lockTable, maxRetries)
 }
 
 func (r *ClickHouseRepository) Repair(migrations []*migrations.Migration) []error {

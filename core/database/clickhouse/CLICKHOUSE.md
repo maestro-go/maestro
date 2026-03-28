@@ -94,7 +94,9 @@ ClickHouse does not support multi-statement transactions in the traditional sens
 
 ### Locking
 
-ClickHouse does not have built-in advisory locks. The `DoInLock` method is currently a no-op. It is recommended to run migrations from a single process to avoid concurrent migration issues.
+ClickHouse does not have built-in advisory locks. This driver implements a locking mechanism using a temporary `Memory` engine table (e.g., `schema_history_lock`). 
+
+The `DoInLock` method attempts to create this table atomically. If the table already exists, it will retry for up to 60 seconds. If the lock table exists for more than 10 minutes, it is considered stale and will be automatically cleared.
 
 ### Schema History Table
 

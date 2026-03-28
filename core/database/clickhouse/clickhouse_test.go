@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/maestro-go/maestro/core/enums"
 	"github.com/maestro-go/maestro/internal/migrations"
@@ -344,11 +345,51 @@ func (s *ClickHouseTestSuite) TestDoInLock() {
 	err := s.repository.AssertSchemaHistoryTable()
 	s.Assert().NoError(err)
 
-	// ClickHouse lock is a no-op currently
-	err = s.repository.DoInLock(func() error {
+	// Open another session
+	db2, err := sql.Open("clickhouse", s.clickhouse.URI)
+	s.Assert().NoError(err)
+	defer db2.Close()
+
+	repo2 := NewClickHouseRepository(s.ctx, db2, testUtils.ToPtr(default_history_table))
+
+	// Acquire lock in first session
+	lockAcquired := make(chan bool)
+	releaseLock := make(chan bool)
+	errChan := make(chan error)
+
+	go func() {
+		err := s.repository.DoInLock(func() error {
+			lockAcquired <- true
+			<-releaseLock
+			return nil
+		})
+		if err != nil {
+			errChan <- err
+		}
+	}()
+
+	<-lockAcquired
+
+	// Try to acquire lock in second session (should fail/timeout)
+	// We'll use a shorter context to avoid waiting 60s
+	ctx, cancel := context.WithTimeout(s.ctx, 2*time.Second)
+	defer cancel()
+	
+	repo2.ctx = ctx
+	err = repo2.DoInLock(func() error {
 		return nil
 	})
-	s.Assert().NoError(err)
+
+	s.Assert().Error(err)
+	s.Assert().Contains(err.Error(), "context deadline exceeded")
+
+	releaseLock <- true
+	
+	// Success with error in fn
+	err = s.repository.DoInLock(func() error {
+		return fmt.Errorf("error")
+	})
+	s.Assert().Error(err)
 }
 
 func (s *ClickHouseTestSuite) TestRepair() {
