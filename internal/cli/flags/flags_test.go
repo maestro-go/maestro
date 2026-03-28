@@ -28,6 +28,12 @@ func TestExtractAllFlags(t *testing.T) {
 		"--history-table", "history",
 		"--sslmode", "disable",
 		"--sslrootcert", "/path/to/cert",
+		"--ssh-host", "ssh-host",
+		"--ssh-port", "22",
+		"--ssh-user", "ssh-user",
+		"--ssh-password", "ssh-pass",
+		"--ssh-key-path", "/path/to/key",
+		"--ssh-passphrase", "ssh-passphrase",
 		"--location", "/tmp",
 		"--migrations", "/migrations",
 		"--validate=false",
@@ -67,6 +73,12 @@ func TestExtractAllFlags(t *testing.T) {
 	assert.Equal(t, "history", projectConfig.HistoryTable)
 	assert.Equal(t, "disable", projectConfig.SSL.SSLMode)
 	assert.Equal(t, "/path/to/cert", projectConfig.SSL.SSLRootCert)
+	assert.Equal(t, "ssh-host", projectConfig.SSH.Host)
+	assert.Equal(t, uint16(22), projectConfig.SSH.Port)
+	assert.Equal(t, "ssh-user", projectConfig.SSH.User)
+	assert.Equal(t, "ssh-pass", projectConfig.SSH.Password)
+	assert.Equal(t, "/path/to/key", projectConfig.SSH.KeyPath)
+	assert.Equal(t, "ssh-passphrase", projectConfig.SSH.Passphrase)
 	assert.Equal(t, "/tmp", globalFlags.Location)
 	assert.Equal(t, []string{"/migrations"}, globalFlags.MigrationLocations)
 	assert.False(t, projectConfig.Migration.Validate)
@@ -91,8 +103,33 @@ func TestMergeFlagsIfChanged(t *testing.T) {
 
 	err := cmd.ParseFlags([]string{
 		"--driver", "sqlite3",
+		"--host", "remotehost",
+		"--port", "3306",
+		"--database", "newdb",
+		"--user", "newuser",
+		"--password", "newpass",
+		"--schema", "private",
+		"--sslmode", "require",
+		"--sslrootcert", "/new/cert",
+		"--ssh-host", "new-ssh-host",
+		"--ssh-port", "2222",
+		"--ssh-user", "new-ssh-user",
+		"--ssh-password", "new-ssh-pass",
+		"--ssh-key-path", "/new/ssh/key",
+		"--ssh-passphrase", "new-ssh-passphrase",
 		"--migrations", "/new/migrations",
+		"--validate=false",
+		"--down=true",
+		"--in-transaction=false",
 		"--destination", "2",
+		"--force=true",
+		"--use-repeatable=false",
+		"--use-before=false",
+		"--use-after=false",
+		"--use-before-each=false",
+		"--use-after-each=false",
+		"--use-before-version=false",
+		"--use-after-version=false",
 	})
 	require.NoError(t, err)
 
@@ -111,6 +148,31 @@ func TestMergeFlagsIfChanged(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "sqlite3", projectConfig.Driver)
+	assert.Equal(t, "remotehost", projectConfig.Host)
+	assert.Equal(t, uint16(3306), projectConfig.Port)
+	assert.Equal(t, "newdb", projectConfig.Database)
+	assert.Equal(t, "newuser", projectConfig.User)
+	assert.Equal(t, "newpass", projectConfig.Password)
+	assert.Equal(t, "private", projectConfig.Schema)
+	assert.Equal(t, "require", projectConfig.SSL.SSLMode)
+	assert.Equal(t, "/new/cert", projectConfig.SSL.SSLRootCert)
+	assert.Equal(t, "new-ssh-host", projectConfig.SSH.Host)
+	assert.Equal(t, uint16(2222), projectConfig.SSH.Port)
+	assert.Equal(t, "new-ssh-user", projectConfig.SSH.User)
+	assert.Equal(t, "new-ssh-pass", projectConfig.SSH.Password)
+	assert.Equal(t, "/new/ssh/key", projectConfig.SSH.KeyPath)
+	assert.Equal(t, "new-ssh-passphrase", projectConfig.SSH.Passphrase)
 	assert.Equal(t, []string{"/new/migrations"}, projectConfig.Migration.Locations)
+	assert.False(t, projectConfig.Migration.Validate)
+	assert.True(t, projectConfig.Migration.Down)
+	assert.False(t, projectConfig.Migration.InTransaction)
 	assert.Equal(t, uint16(2), *projectConfig.Migration.Destination)
+	assert.True(t, projectConfig.Migration.Force)
+	assert.False(t, projectConfig.Migration.UseRepeatable)
+	assert.False(t, projectConfig.Migration.UseBefore)
+	assert.False(t, projectConfig.Migration.UseAfter)
+	assert.False(t, projectConfig.Migration.UseBeforeEach)
+	assert.False(t, projectConfig.Migration.UseAfterEach)
+	assert.False(t, projectConfig.Migration.UseBeforeVersion)
+	assert.False(t, projectConfig.Migration.UseAfterVersion)
 }

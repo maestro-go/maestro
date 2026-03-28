@@ -1,6 +1,6 @@
 <p align="center">
   <img alt="GitHub Release" src="https://img.shields.io/github/v/release/maestro-go/maestro">
-  <img src="https://img.shields.io/badge/Go-1.22+-blue.svg" alt="Supported Go Versions">
+  <img src="https://img.shields.io/badge/Go-1.25+-blue.svg" alt="Supported Go Versions">
   <a href="https://goreportcard.com/report/github.com/maestro-go/maestro">
     <img src="https://goreportcard.com/badge/github.com/maestro-go/maestro" alt="Go Report Card">
   </a>
@@ -71,10 +71,10 @@ go get github.com/maestro-go/maestro/core
 - ✅ [PostgreSQL](/core/database/postgres/POSTGRES.md)
 - ✅ [CockroachDB](/core/database/cockroachdb/COCKROACH.md)
 - ✅ [SQLite3](/core/database/sqlite3/SQLITE3.md)
+- ✅ [MySQL](/core/database/mysql/MYSQL.md)
 
 ### In Progress
 
-- 🚧 MySQL
 - 🚧 ClickHouse
 
 ## Key Features
@@ -84,9 +84,6 @@ go get github.com/maestro-go/maestro/core
 - 🔒 Validate migrations with MD5 checksums
 - 🪝 Utilize a flexible hooks system
 - 📝 Track migration history clearly
-
-### Upcoming Features
-
 - 🔑 Built-in SSH tunnel support
 
 ## Migrations

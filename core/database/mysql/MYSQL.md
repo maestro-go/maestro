@@ -1,28 +1,22 @@
-# 🐘 PostgreSQL
+# 🐬 MySQL
 
 > [!NOTE]
-> You must pass **`"postgres"`** as the driver name to our library.
+> You must pass **`"mysql"`** as the driver name to our library.
 
 ---
 
 ## ⚙️ Configuration
 
-The following configuration options are available for the PostgreSQL driver.
+The following configuration options are available for the MySQL driver.
 
 ### Required
 
 - `database`: The name of the database to connect to.
-- `driver`: Must be set to `postgres`.
+- `driver`: Must be set to `mysql`.
 - `host`: The server host or IP address.
 - `port`: The server port.
 - `user`: The username for authentication.
 - `password`: The password for authentication.
-
-### Optional
-
-- `schema`: The default schema to use. Defaults to `public`.
-- `sslmode`: The SSL mode. Can be `disable`, `allow`, `prefer`, `require`, `verify-ca`, or `verify-full`.
-- `sslrootcert`: The path to the SSL root certificate file.
 
 ### SSH (CLI only)
 
@@ -42,7 +36,7 @@ The following configuration options are available for the PostgreSQL driver.
 To use the CLI, ensure you specify the correct database connection details.
 
 ```bash
-maestro migrate --database=mydb --driver=postgres --host=localhost --port=5432 --user=myuser --password=mypassword --schema=public --sslmode=disable
+maestro migrate --database=mydb --driver=mysql --host=localhost --port=3306 --user=myuser --password=mypassword
 ```
 
 ### Go library
@@ -54,9 +48,9 @@ import (
     "log"
     "go.uber.org/zap"
 
-    _ "github.com/lib/pq"
+    _ "github.com/go-sql-driver/mysql"
     "github.com/maestro-go/maestro/core/conf"
-    "github.com/maestro-go/maestro/core/database/postgres"
+    "github.com/maestro-go/maestro/core/database/mysql"
     "github.com/maestro-go/maestro/core/migrator"
 )
 
@@ -67,14 +61,14 @@ func main() {
 
     config := createConfig()
 
-    db, err := sql.Open("postgres", "host=localhost port=5432 user=myuser password=mypassword dbname=mydb sslmode=disable")
+    db, err := sql.Open("mysql", "myuser:mypassword@tcp(localhost:3306)/mydb?parseTime=true")
     if err != nil {
         log.Fatal(err)
     }
 
-    // Initializes a new PostgreSQL repository instance.
+    // Initializes a new MySQL repository instance.
     // You can pass a value for the third parameter (history table name), but in this case, it will use the default (schema_history).
-    repo := postgres.NewPostgresRepository(ctx, db, nil)
+    repo := mysql.NewMySQLRepository(ctx, db, nil)
     migrator := migrator.NewMigrator(logger, repo, config)
 
     err = migrator.Migrate()
@@ -86,3 +80,12 @@ func main() {
 }
 ```
 
+---
+
+## ⚠️ Important Considerations
+
+### DDL Transactions
+
+MySQL does **not** support DDL transactions (e.g., `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`). Any DDL statement will cause an **implicit commit**, meaning that if a migration containing both DDL and DML (or multiple DDLs) fails, the changes made by preceding statements will NOT be rolled back.
+
+It is recommended to keep each migration script atomic and focused on a single logical change to minimize the risk of partial migration states.
