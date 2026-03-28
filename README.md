@@ -74,6 +74,7 @@ go get github.com/maestro-go/maestro/core
 - ✅ [MySQL / MariaDB](/core/database/mysql/MYSQL.md)
 - ✅ [ClickHouse](/core/database/clickhouse/CLICKHOUSE.md)
 - ✅ [Oracle](/core/database/oracle/ORACLE.md)
+- ✅ [Microsoft SQL Server](/core/database/mssql/MSSQL.md)
 
 ## Key Features
 

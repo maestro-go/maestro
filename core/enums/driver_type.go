@@ -9,6 +9,7 @@ const (
 	DRIVER_MYSQL
 	DRIVER_CLICKHOUSE
 	DRIVER_ORACLE
+	DRIVER_MSSQL
 )
 
 var MapStringToDriverType = map[string]DriverType{
@@ -19,4 +20,6 @@ var MapStringToDriverType = map[string]DriverType{
 	"mariadb":     DRIVER_MYSQL,
 	"clickhouse":  DRIVER_CLICKHOUSE,
 	"oracle":      DRIVER_ORACLE,
+	"mssql":       DRIVER_MSSQL,
+	"sqlserver":   DRIVER_MSSQL,
 }
