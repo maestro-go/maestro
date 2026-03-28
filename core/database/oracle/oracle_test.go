@@ -39,7 +39,7 @@ func (s *MigrationTestSuite) SetupSuite() {
 
 func (s *MigrationTestSuite) TearDownTest() {
 	if s.oracle != nil {
-		tables := []string{default_history_table, "MAESTRO_LOCK", "TEST", "TEST2", "TEST3", "TEST4", "TEST1"}
+		tables := []string{default_history_table, "MAESTRO_LOCK", "TEST", "TEST2", "TEST3", "TEST4", "TEST1", "TEST_DML"}
 		for _, table := range tables {
 			query := fmt.Sprintf(`
 				BEGIN
@@ -322,7 +322,14 @@ func (s *MigrationTestSuite) TestRollbackMigration() {
 }
 
 func (s *MigrationTestSuite) TestDoInTransaction() {
-	content := "CREATE TABLE test1 (id NUMBER NOT NULL PRIMARY KEY)"
+	// Using DML instead of DDL because Oracle doesn't support DDL rollback
+	_, err := s.suiteDb.ExecContext(s.ctx, "CREATE TABLE test_dml (id NUMBER NOT NULL PRIMARY KEY)")
+	s.Assert().NoError(err)
+
+	err = s.repository.AssertSchemaHistoryTable()
+	s.Assert().NoError(err)
+
+	content := "INSERT INTO test_dml (id) VALUES (1)"
 	checksum := "0a52730597fb4ffa01fc117d9e71e3a9"
 	migration := &migrations.Migration{
 		Version:     1,
@@ -332,9 +339,6 @@ func (s *MigrationTestSuite) TestDoInTransaction() {
 		Content:     &content,
 	}
 
-	err := s.repository.AssertSchemaHistoryTable()
-	s.Assert().NoError(err)
-
 	// Fail case
 	err = s.repository.DoInTransaction(func() error {
 		errs := s.repository.ExecuteMigration(migration)
@@ -343,7 +347,12 @@ func (s *MigrationTestSuite) TestDoInTransaction() {
 		return fmt.Errorf("example error")
 	})
 	s.Assert().Error(err)
-	s.checkTableExists("TEST1", false)
+
+	// Check that DML was rolled back
+	count := 0
+	err = s.suiteDb.QueryRowContext(s.ctx, "SELECT COUNT(*) FROM test_dml WHERE id = 1").Scan(&count)
+	s.Assert().NoError(err)
+	s.Assert().Equal(0, count)
 
 	// Success case
 	err = s.repository.DoInTransaction(func() error {
@@ -352,7 +361,10 @@ func (s *MigrationTestSuite) TestDoInTransaction() {
 		return nil
 	})
 	s.Assert().NoError(err)
-	s.checkTableExists("TEST1", true)
+
+	err = s.suiteDb.QueryRowContext(s.ctx, "SELECT COUNT(*) FROM test_dml WHERE id = 1").Scan(&count)
+	s.Assert().NoError(err)
+	s.Assert().Equal(1, count)
 }
 
 func (s *MigrationTestSuite) TestDoInLock() {

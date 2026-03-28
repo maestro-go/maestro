@@ -120,6 +120,12 @@ func (r *OracleRepository) ValidateMigrations(migs []*migrations.Migration) []er
 		return nil
 	}
 
+	for _, migration := range migs {
+		if migration.Type != enums.MIGRATION_UP {
+			return []error{fmt.Errorf("invalid migration type: %s", migration.Type.Name())}
+		}
+	}
+
 	// Check gaps
 	query := fmt.Sprintf(`
 		SELECT version FROM %s ORDER BY version ASC
@@ -141,8 +147,9 @@ func (r *OracleRepository) ValidateMigrations(migs []*migrations.Migration) []er
 			return []error{err}
 		}
 
-		if expectedVersion != actualVersion {
+		for expectedVersion < actualVersion {
 			errs = append(errs, fmt.Errorf("missing version %d", expectedVersion))
+			expectedVersion++
 		}
 
 		expectedVersion = actualVersion + 1

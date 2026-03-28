@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/docker/docker/api/types/container"
 )
 
 type OracleContainer struct {
@@ -26,11 +27,15 @@ func SetupOracle(t *testing.T) *OracleContainer {
 	username := "SYSTEM"
 	password := "password"
 	req := testcontainers.ContainerRequest{
-		Image:        "gvenzl/oracle-free:23.4-slim",
+		Image:        "gvenzl/oracle-free:slim",
 		ExposedPorts: []string{"1521/tcp"},
+		Hostname:     "oracle-23ai",
 		WaitingFor:   wait.ForLog("DATABASE IS READY TO USE!"),
 		Env: map[string]string{
 			"ORACLE_PASSWORD": password,
+		},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ShmSize = 2 * 1024 * 1024 * 1024 // 2GB
 		},
 	}
 
