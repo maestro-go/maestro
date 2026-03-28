@@ -13,10 +13,10 @@ import (
 
 // Tunnel represents an SSH tunnel.
 type Tunnel struct {
-	config    *conf.SSHConfig
-	client    *ssh.Client
-	listener  net.Listener
-	localPort uint16
+	config     *conf.SSHConfig
+	client     *ssh.Client
+	listener   net.Listener
+	localPort  uint16
 	remoteAddr string
 }
 
@@ -58,7 +58,7 @@ func (t *Tunnel) Start(ctx context.Context) error {
 	sshConfig := &ssh.ClientConfig{
 		User:            t.config.User,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // For simplicity, you might want to make this configurable
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
 	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", t.config.Host, t.config.Port), sshConfig)
