@@ -305,9 +305,7 @@ func (r *PostgresRepository) DoInTransaction(fn func() error) error {
 		return err
 	}
 
-	tx.Commit()
-
-	return nil
+	return tx.Commit()
 }
 
 func (r *PostgresRepository) DoInLock(fn func() error) error {

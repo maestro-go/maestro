@@ -306,9 +306,7 @@ func (r *CockroachRepository) DoInTransaction(fn func() error) error {
 		return err
 	}
 
-	tx.Commit()
-
-	return nil
+	return tx.Commit()
 }
 
 func (r *CockroachRepository) DoInLock(fn func() error) error {

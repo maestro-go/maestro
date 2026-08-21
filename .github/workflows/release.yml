@@ -6,6 +6,24 @@ on:
       - 'v*'
 
 jobs:
+  lint:
+    name: Lint (golangci-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.9.0
+
   test:
     name: Test before Release
     runs-on: ubuntu-latest
@@ -22,12 +40,80 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run tests
-        run: go test -race ./...
+      - name: Run tests with coverage
+        run: go test -race -coverprofile=cover.out ./...
+
+      - name: Filter out testing utilities from coverage
+        run: |
+          grep -v "internal/utils/testing" cover.out > cover.filtered.out
+          mv cover.filtered.out cover.out
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: cover.out
+          retention-days: 1
+
+  badges:
+    name: Generate Release Badges
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+
+      - name: Compute coverage
+        id: coverage
+        run: |
+          COVERAGE=$(go tool cover -func=cover.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Generate badges
+        run: |
+          VERSION="${{ github.ref_name }}" \
+          GO_VERSION="$(grep '^go ' go.mod | awk '{print $2}' | cut -d. -f1,2)+" \
+          COVERAGE="${{ steps.coverage.outputs.coverage }}" \
+          LINT="passing" \
+          bash .github/scripts/generate_badges.sh
+
+      - name: Checkout badges branch
+        uses: actions/checkout@v4
+        with:
+          ref: badges
+          path: badges-repo
+
+      - name: Copy badges to badges branch
+        run: |
+          mkdir -p badges-repo/.badges
+          cp -r .badges/. badges-repo/.badges/
+
+      - name: Commit and push badges
+        run: |
+          cd badges-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .badges
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update badges for ${{ github.ref_name }}"
+            git push origin HEAD:badges
+          fi
 
   build:
     name: Build Binaries
-    needs: test
+    needs: [test, lint]
     runs-on: ubuntu-latest
     strategy:
       matrix:

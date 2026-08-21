@@ -1,13 +1,9 @@
 <p align="center">
-  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/maestro-go/maestro">
-  <img src="https://img.shields.io/badge/Go-1.25+-blue.svg" alt="Supported Go Versions">
-  <a href="https://goreportcard.com/report/github.com/maestro-go/maestro">
-    <img src="https://goreportcard.com/badge/github.com/maestro-go/maestro" alt="Go Report Card">
-  </a>
-  <img src="https://raw.githubusercontent.com/maestro-go/maestro/badges/.badges/main/coverage.svg" alt="Coverage Status">
-  <a href="./LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-yellow.svg" alt="License">
-  </a>
+  <img alt="Release" src="https://raw.githubusercontent.com/maestro-go/maestro/badges/.badges/release/version.svg">
+  <img alt="Go Version" src="https://raw.githubusercontent.com/maestro-go/maestro/badges/.badges/release/go.svg">
+  <img alt="golangci-lint" src="https://raw.githubusercontent.com/maestro-go/maestro/badges/.badges/release/lint.svg">
+  <img alt="Coverage" src="https://raw.githubusercontent.com/maestro-go/maestro/badges/.badges/release/coverage.svg">
+  <img alt="License" src="https://raw.githubusercontent.com/maestro-go/maestro/badges/.badges/release/license.svg">
 </p>
 
 <p align="center">

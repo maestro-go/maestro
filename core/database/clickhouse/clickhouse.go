@@ -300,7 +300,9 @@ func (r *ClickHouseRepository) DoInLock(fn func() error) error {
 
 		_, err := r.db.ExecContext(r.ctx, query)
 		if err == nil {
-			defer r.db.ExecContext(r.ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", lockTable))
+			defer func() {
+				_, _ = r.db.ExecContext(r.ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", lockTable))
+			}()
 			return fn()
 		}
 
@@ -310,7 +312,7 @@ func (r *ClickHouseRepository) DoInLock(fn func() error) error {
 		if err == nil {
 			if time.Since(createdAt) > lockTimeout {
 				// Lock is stale, try to drop it.
-				r.db.ExecContext(r.ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", lockTable))
+				_, _ = r.db.ExecContext(r.ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", lockTable))
 				continue
 			}
 		}

@@ -306,9 +306,7 @@ func (r *MySQLRepository) DoInTransaction(fn func() error) error {
 		return err
 	}
 
-	tx.Commit()
-
-	return nil
+	return tx.Commit()
 }
 
 func (r *MySQLRepository) DoInLock(fn func() error) error {
