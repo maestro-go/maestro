@@ -10,6 +10,7 @@ const (
 	DRIVER_CLICKHOUSE
 	DRIVER_ORACLE
 	DRIVER_MSSQL
+	DRIVER_SNOWFLAKE
 )
 
 var MapStringToDriverType = map[string]DriverType{
@@ -22,4 +23,5 @@ var MapStringToDriverType = map[string]DriverType{
 	"oracle":      DRIVER_ORACLE,
 	"mssql":       DRIVER_MSSQL,
 	"sqlserver":   DRIVER_MSSQL,
+	"snowflake":   DRIVER_SNOWFLAKE,
 }

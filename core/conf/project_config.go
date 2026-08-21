@@ -40,6 +40,10 @@ type ProjectConfig struct {
 	Schema       string `yaml:"schema" default:"public"`
 	HistoryTable string `yaml:"history-table" default:"schema_history"`
 
+	Account   string `yaml:"account,omitempty"`
+	Warehouse string `yaml:"warehouse,omitempty"`
+	Role      string `yaml:"role,omitempty"`
+
 	SSL sslConfig `yaml:"ssl"`
 
 	SSH SSHConfig `yaml:"ssh"`

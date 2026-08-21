@@ -75,6 +75,7 @@ go get github.com/maestro-go/maestro/core
 - ✅ [ClickHouse](/core/database/clickhouse/CLICKHOUSE.md)
 - ✅ [Oracle](/core/database/oracle/ORACLE.md)
 - ✅ [Microsoft SQL Server](/core/database/mssql/MSSQL.md)
+- ✅ [Snowflake](/core/database/snowflake/SNOWFLAKE.md)
 
 ## Key Features
 

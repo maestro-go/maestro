@@ -14,8 +14,11 @@ import (
 	"github.com/maestro-go/maestro/core/database/mysql"
 	"github.com/maestro-go/maestro/core/database/oracle"
 	"github.com/maestro-go/maestro/core/database/postgres"
+	"github.com/maestro-go/maestro/core/database/snowflake"
 	"github.com/maestro-go/maestro/core/database/sqlite3"
 	"github.com/maestro-go/maestro/core/enums"
+
+	"github.com/snowflakedb/gosnowflake"
 
 	"github.com/maestro-go/maestro/internal/ssh"
 	"github.com/maestro-go/maestro/internal/utils/net"
@@ -151,6 +154,22 @@ func ConnectToDatabase(ctx context.Context, logger *zap.Logger, config *conf.Pro
 		db.SetConnMaxLifetime(5 * time.Minute)
 
 		repo = mssql.NewMSSQLRepository(ctx, db, &config.HistoryTable)
+
+	case enums.DRIVER_SNOWFLAKE:
+		var err error
+		db, err = connectToSnowflake(config)
+		if err != nil {
+			if tunnel != nil {
+				tunnel.Close()
+			}
+			return nil, nil, err
+		}
+
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(25)
+		db.SetConnMaxLifetime(5 * time.Minute)
+
+		repo = snowflake.NewSnowflakeRepository(ctx, db, &config.HistoryTable)
 
 	default:
 		if tunnel != nil {
@@ -300,6 +319,47 @@ func connectToMSSQL(config *conf.ProjectConfig) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
+
+	// Verify connection
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("database ping failed: %w", err)
+	}
+
+	return db, nil
+}
+
+func connectToSnowflake(config *conf.ProjectConfig) (*sql.DB, error) {
+	port := config.Port
+	if port == 0 {
+		port = 443
+	}
+
+	// For custom endpoints (e.g. the LocalStack Snowflake emulator) HTTP is used,
+	// while the default Snowflake service communicates over HTTPS.
+	protocol := "https"
+	if port != 443 {
+		protocol = "http"
+	}
+
+	cfg := &gosnowflake.Config{
+		Account:   config.Account,
+		User:      config.User,
+		Password:  config.Password,
+		Database:  config.Database,
+		Schema:    config.Schema,
+		Warehouse: config.Warehouse,
+		Role:      config.Role,
+		Host:      config.Host,
+		Port:      int(port),
+		Protocol:  protocol,
+		Params:    make(map[string]*string),
+	}
+
+	connector := gosnowflake.NewConnector(gosnowflake.SnowflakeDriver{}, *cfg)
+	db := sql.OpenDB(connector)
 
 	// Verify connection
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
