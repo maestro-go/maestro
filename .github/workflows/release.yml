@@ -194,11 +194,47 @@ jobs:
           find artifacts -type f \( -name "maestro_*" \) -exec cp {} release_assets/ \;
           ls -la release_assets/
 
+      - name: Generate release notes (PRs to dev only)
+        id: notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+
+          # Last published release, used to scope the changelog to what's new.
+          PREV="$(gh api "repos/$REPO/releases/latest" --jq '.tag_name' 2>/dev/null || true)"
+          SINCE=""
+          if [ -n "$PREV" ]; then
+            SINCE="$(gh api "repos/$REPO/releases/tags/$PREV" --jq '.published_at' 2>/dev/null || true)"
+          fi
+
+          # Only pull requests merged into dev.
+          PRS="$(gh api "repos/$REPO/pulls?state=closed&base=dev&per_page=100" --paginate --jq \
+            '.[] | select(.merged_at != null) | [.merged_at, .number, .title, .user.login] | @tsv' \
+            2>/dev/null || true)"
+
+          NOTES="## What's Changed"
+          COUNT=0
+          while IFS=$'\t' read -r merged_at num title login; do
+            [ -z "$merged_at" ] && continue
+            if [ -n "$SINCE" ] && [ "$(date -d "$merged_at" +%s)" -lt "$(date -d "$SINCE" +%s)" ]; then
+              continue
+            fi
+            NOTES="${NOTES}"$'\n'"- $title by @$login in #$num"
+            COUNT=$((COUNT + 1))
+          done <<< "$PRS"
+
+          if [ "$COUNT" -eq 0 ]; then
+            NOTES="${NOTES}"$'\n'"- No pull requests merged into \`dev\` since the last release."
+          fi
+
+          echo "$NOTES" > release_notes.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: release_assets/*
-          generate_release_notes: true
+          body-path: release_notes.md
           draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
         env:
