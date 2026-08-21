@@ -6,6 +6,12 @@ on:
   push:
     branches: [main, dev]
 
+# Pushes to a branch and its pull_request both trigger this workflow; group by
+# the head branch so the redundant run is cancelled instead of executed twice.
+concurrency:
+  group: go-ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint (golangci-lint)
