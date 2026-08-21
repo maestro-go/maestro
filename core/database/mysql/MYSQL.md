@@ -1,7 +1,7 @@
 # 🐬 MySQL
 
 > [!NOTE]
-> You must pass **`"mysql"`** as the driver name to our library.
+> You must pass **`"mysql"`** or **`"mariadb"`** as the driver name to our library.
 
 ---
 

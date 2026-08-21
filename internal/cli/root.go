@@ -49,6 +49,6 @@ func runRootCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cmd.Help()
+	_ = cmd.Help()
 	return nil
 }

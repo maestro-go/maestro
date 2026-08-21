@@ -33,10 +33,10 @@ func ParseTemplates(content *string, templates []*Template) {
 
 			newTemplateContent := template.Content
 			for i, value := range values[1:] {
-				*newTemplateContent = strings.Replace(*newTemplateContent, fmt.Sprintf("$%d", i+1), strings.TrimSpace(value), -1)
+				*newTemplateContent = strings.ReplaceAll(*newTemplateContent, fmt.Sprintf("$%d", i+1), strings.TrimSpace(value))
 			}
 
-			*content = strings.Replace(*content, match[0], *newTemplateContent, -1)
+			*content = strings.ReplaceAll(*content, match[0], *newTemplateContent)
 
 			break
 		}

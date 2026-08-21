@@ -6,6 +6,24 @@ on:
       - 'v*'
 
 jobs:
+  lint:
+    name: Lint (golangci-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.9.0
+
   test:
     name: Test before Release
     runs-on: ubuntu-latest
@@ -22,12 +40,80 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run tests
-        run: go test -race ./...
+      - name: Run tests with coverage
+        run: go test -race -coverprofile=cover.out ./...
+
+      - name: Filter out testing utilities from coverage
+        run: |
+          grep -v "internal/utils/testing" cover.out > cover.filtered.out
+          mv cover.filtered.out cover.out
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: cover.out
+          retention-days: 1
+
+  badges:
+    name: Generate Release Badges
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+
+      - name: Compute coverage
+        id: coverage
+        run: |
+          COVERAGE=$(go tool cover -func=cover.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Generate badges
+        run: |
+          VERSION="${{ github.ref_name }}" \
+          GO_VERSION="$(grep '^go ' go.mod | awk '{print $2}' | cut -d. -f1,2)+" \
+          COVERAGE="${{ steps.coverage.outputs.coverage }}" \
+          LINT="passing" \
+          bash .github/scripts/generate_badges.sh
+
+      - name: Checkout badges branch
+        uses: actions/checkout@v4
+        with:
+          ref: badges
+          path: badges-repo
+
+      - name: Copy badges to badges branch
+        run: |
+          mkdir -p badges-repo/.badges
+          cp -r .badges/. badges-repo/.badges/
+
+      - name: Commit and push badges
+        run: |
+          cd badges-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .badges
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update badges for ${{ github.ref_name }}"
+            git push origin HEAD:badges
+          fi
 
   build:
     name: Build Binaries
-    needs: test
+    needs: [test, lint]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -108,11 +194,47 @@ jobs:
           find artifacts -type f \( -name "maestro_*" \) -exec cp {} release_assets/ \;
           ls -la release_assets/
 
+      - name: Generate release notes (PRs to dev only)
+        id: notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+
+          # Last published release, used to scope the changelog to what's new.
+          PREV="$(gh api "repos/$REPO/releases/latest" --jq '.tag_name' 2>/dev/null || true)"
+          SINCE=""
+          if [ -n "$PREV" ]; then
+            SINCE="$(gh api "repos/$REPO/releases/tags/$PREV" --jq '.published_at' 2>/dev/null || true)"
+          fi
+
+          # Only pull requests merged into dev.
+          PRS="$(gh api "repos/$REPO/pulls?state=closed&base=dev&per_page=100" --paginate --jq \
+            '.[] | select(.merged_at != null) | [.merged_at, .number, .title, .user.login] | @tsv' \
+            2>/dev/null || true)"
+
+          NOTES="## What's Changed"
+          COUNT=0
+          while IFS=$'\t' read -r merged_at num title login; do
+            [ -z "$merged_at" ] && continue
+            if [ -n "$SINCE" ] && [ "$(date -d "$merged_at" +%s)" -lt "$(date -d "$SINCE" +%s)" ]; then
+              continue
+            fi
+            NOTES="${NOTES}"$'\n'"- $title by @$login in #$num"
+            COUNT=$((COUNT + 1))
+          done <<< "$PRS"
+
+          if [ "$COUNT" -eq 0 ]; then
+            NOTES="${NOTES}"$'\n'"- No pull requests merged into \`dev\` since the last release."
+          fi
+
+          echo "$NOTES" > release_notes.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: release_assets/*
-          generate_release_notes: true
+          body-path: release_notes.md
           draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
         env:

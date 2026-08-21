@@ -7,6 +7,9 @@ const (
 	DRIVER_COCKROACHDB
 	DRIVER_SQLITE3
 	DRIVER_MYSQL
+	DRIVER_CLICKHOUSE
+	DRIVER_ORACLE
+	DRIVER_MSSQL
 )
 
 var MapStringToDriverType = map[string]DriverType{
@@ -14,4 +17,9 @@ var MapStringToDriverType = map[string]DriverType{
 	"cockroachdb": DRIVER_COCKROACHDB,
 	"sqlite3":     DRIVER_SQLITE3,
 	"mysql":       DRIVER_MYSQL,
+	"mariadb":     DRIVER_MYSQL,
+	"clickhouse":  DRIVER_CLICKHOUSE,
+	"oracle":      DRIVER_ORACLE,
+	"mssql":       DRIVER_MSSQL,
+	"sqlserver":   DRIVER_MSSQL,
 }

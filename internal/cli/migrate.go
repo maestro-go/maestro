@@ -6,6 +6,7 @@ import (
 	"log"
 	"path/filepath"
 
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"github.com/maestro-go/maestro/core/conf"
@@ -17,6 +18,8 @@ import (
 	"github.com/maestro-go/maestro/internal/filesystem"
 	"github.com/maestro-go/maestro/internal/utils/logger"
 	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/microsoft/go-mssqldb"
+	_ "github.com/sijms/go-ora/v2"
 	"github.com/spf13/cobra"
 )
 

@@ -72,7 +72,7 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 	errs := insertMigrationFolders(globalFlags.MigrationLocations)
 	if len(errs) > 0 {
 		logErrors(logger, ErrWriteMigration, errs)
-		os.RemoveAll(configFilePath) // Rollback
+		_ = os.RemoveAll(configFilePath) // Rollback
 		return errors.Join(errs...)
 	}
 
@@ -125,7 +125,7 @@ func insertMigrationFolders(migrationDirs []string) []error {
 	if len(errs) > 0 {
 		// Rollback
 		for _, migrationDir := range migrationDirs {
-			os.RemoveAll(migrationDir)
+			_ = os.RemoveAll(migrationDir)
 		}
 		return errs
 	}
