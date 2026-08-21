@@ -73,7 +73,7 @@ func (r *MSSQLRepository) AssertSchemaHistoryTable() error {
 	}
 
 	query := fmt.Sprintf(`
-		IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='%s' AND xtype='U')
+		IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '%s' AND TABLE_SCHEMA = SCHEMA_NAME())
 		CREATE TABLE %s (
 			version SMALLINT NOT NULL PRIMARY KEY,
 			description NVARCHAR(255) NOT NULL,
@@ -97,6 +97,7 @@ func (r *MSSQLRepository) CheckSchemaHistoryTable() (bool, error) {
 		SELECT COUNT(*)
 		FROM INFORMATION_SCHEMA.TABLES
 		WHERE TABLE_NAME = @p1
+		  AND TABLE_SCHEMA = SCHEMA_NAME()
 	`
 
 	count := 0
@@ -255,19 +256,16 @@ func (r *MSSQLRepository) RollbackMigration(migration *migrations.Migration) err
 	}
 
 	query := fmt.Sprintf(`
-		IF EXISTS (SELECT 1 FROM %s WHERE version = @p1)
-			SELECT 1
-		ELSE
-			SELECT 0
+		SELECT COUNT(*) FROM %s WHERE version = @p1
 	`, r.history_table)
 
-	exists := 0
-	err := r.queriable.QueryRowContext(r.ctx, query, migration.Version).Scan(&exists)
+	count := 0
+	err := r.queriable.QueryRowContext(r.ctx, query, migration.Version).Scan(&count)
 	if err != nil {
 		return err
 	}
 
-	if exists == 0 {
+	if count == 0 {
 		return nil
 	}
 
