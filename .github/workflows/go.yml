@@ -4,13 +4,11 @@ on:
   pull_request:
     branches: [main, dev]
   push:
-    branches: [main, dev]
+    branches: [main]
 
-# Pushes to a branch and its pull_request both trigger this workflow; group by
-# the head branch so the redundant run is cancelled instead of executed twice.
-concurrency:
-  group: go-ci-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
+# No concurrency/cancel-in-progress: redundant runs are filtered at the trigger
+# level (push only on main, PRs cover main/dev), so a push to a PR head branch
+# fires a single run instead of a duplicate that would need cancelling.
 
 jobs:
   lint:
